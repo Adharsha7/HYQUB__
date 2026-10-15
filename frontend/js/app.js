@@ -114,30 +114,32 @@ $('btn-theme').onclick = () => {
 // ---------- Bottom Navigation ----------
 function updateNav(cur) {
   const nav = $('bottom-nav');
+  if (!nav) return;
   if (!user || cur === 'auth' || cur === 'status') {
     nav.hidden = true;
     return;
   }
   nav.hidden = false;
-  $('nav-home').classList.toggle('on', cur === 'home');
-  $('nav-pay').classList.toggle('on', cur === 'pay');
-  $('nav-receive').classList.toggle('on', cur === 'receive');
+  if ($('nav-home')) $('nav-home').classList.toggle('on', cur === 'home');
+  if ($('nav-pay')) $('nav-pay').classList.toggle('on', cur === 'pay');
+  if ($('nav-receive')) $('nav-receive').classList.toggle('on', cur === 'receive');
 }
-$('nav-home').onclick = () => goHome();
-$('nav-pay').onclick = () => openPay();
-$('nav-receive').onclick = () => openReceive();
+if ($('nav-home')) $('nav-home').onclick = () => goHome();
+if ($('nav-pay')) $('nav-pay').onclick = () => openPay();
+if ($('nav-receive')) $('nav-receive').onclick = () => openReceive();
 
 // ---------- Auth ----------
 function setMode(s) {
   signup = s;
-  $('tab-login').classList.toggle('on', !s);
-  $('tab-signup').classList.toggle('on', s);
   txt('auth-submit', s ? 'Create account' : 'Log in');
   txt('auth-error', '');
-  $('auth-password').autocomplete = s ? 'new-password' : 'current-password';
+  const pw = $('auth-password');
+  if (pw) pw.autocomplete = s ? 'new-password' : 'current-password';
+  txt('auth-switch-text', s ? 'Already have an account? ' : "Don't have an account? ");
+  txt('auth-switch-btn', s ? 'Log in' : 'Sign up');
 }
-$('tab-login').onclick = () => setMode(false);
-$('tab-signup').onclick = () => setMode(true);
+const authSwitchBtn = $('auth-switch-btn');
+if (authSwitchBtn) authSwitchBtn.onclick = () => setMode(!signup);
 
 $('auth-form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -234,12 +236,14 @@ function animateBalanceCountUp(targetStr) {
   requestAnimationFrame(stepAnim);
 }
 
-// ---------- Security Card ----------
-txt('security-text', `${TEST_STATS.backend} backend tests and ${TEST_STATS.frontend} frontend tests (${TEST_STATS.updated}). Payments are signed with ML-DSA-65, approved by a verifier quorum, then executed through an ERC-4337 wallet.`);
-$('btn-toggle-security').onclick = () => {
-  const sc = $('card-security');
-  sc.hidden = !sc.hidden;
-};
+// ---------- Security Card (Removed) ----------
+if ($('security-text')) txt('security-text', '');
+if ($('btn-toggle-security')) {
+  $('btn-toggle-security').onclick = () => {
+    const sc = $('card-security');
+    if (sc) sc.hidden = !sc.hidden;
+  };
+}
 
 // ---------- Activity Bottom Sheet ----------
 function openSheet(h) {
@@ -372,16 +376,28 @@ async function goHome() {
     // Render mock immediately so the chart is never blank
     window.renderPriceChart(chartEl, { base: DEMO_RATE_USD });
     chartRendered = true;
+    cleanChartDisclaimer();
+    const obs = new MutationObserver(() => cleanChartDisclaimer());
+    obs.observe(chartEl, { childList: true, subtree: true });
   }
 
   // Fetch live market data once per Home visit (background, non-blocking)
   if (chartEl && typeof window.updatePriceChart === 'function') {
     api.getMarket().then((data) => {
       window.updatePriceChart(chartEl, data);
+      cleanChartDisclaimer();
     }).catch(() => { /* silently fall back to mock chart */ });
   }
 
   await refreshHome();
+}
+
+function cleanChartDisclaimer() {
+  const note = document.querySelector('.pc-note');
+  if (note && note.textContent.includes('Test ETH has no real value.')) {
+    note.textContent = note.textContent.replace(/\.?\s*Test ETH has no real value\.?/gi, '').trim();
+    if (!note.textContent) note.style.display = 'none';
+  }
 }
 
 async function refreshHome() {
@@ -397,15 +413,7 @@ async function refreshHome() {
     currentHistory = hist;
     paintHistory();
 
-    // Stats Row
     const sentItems = hist.filter((h) => h.direction === 'sent');
-    const sentCount = sentItems.length;
-    const sentSuccess = sentItems.filter((h) => h.status === 'success').length;
-    const recvCount = hist.filter((h) => h.direction === 'received').length;
-
-    txt('stat-payments', sentCount.toString());
-    txt('stat-rate', sentCount > 0 ? `${Math.round((sentSuccess / sentCount) * 100)}%` : '-');
-    txt('stat-received', recvCount.toString());
 
     // Daily Limit Meter (last 24h successful sent items)
     const nowSec = Date.now() / 1000;
@@ -436,10 +444,12 @@ async function refreshHome() {
     $('home-skel').hidden = true;
   }
 }
-$('btn-refresh').onclick = async () => {
-  await refreshHome();
-  toast('Updated');
-};
+if ($('btn-refresh')) {
+  $('btn-refresh').onclick = async () => {
+    await refreshHome();
+    toast('Updated');
+  };
+}
 
 // ---------- Receive Screen ----------
 function openReceive() {
@@ -448,7 +458,7 @@ function openReceive() {
   txt('recv-name', user.name);
   show('receive');
 }
-$('btn-go-receive').onclick = openReceive;
+if ($('btn-go-receive')) $('btn-go-receive').onclick = openReceive;
 $('btn-copy-username').onclick = async () => {
   if (!user) return;
   try {

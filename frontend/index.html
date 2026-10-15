@@ -60,7 +60,7 @@ body {
 .app {
   max-width: 1040px;
   margin: 0 auto;
-  padding: 16px 16px 84px;
+  padding: 16px 16px 24px;
 }
 @media (max-width: 900px) {
   .app { max-width: 440px; }
@@ -91,17 +91,14 @@ input { width: 100%; background: var(--bg); border: 1px solid var(--line); borde
 input:focus { border-color: var(--ac); }
 label { display: block; margin: 14px 0 6px; font-size: 13px; color: var(--dim); }
 .err { color: var(--bad); font-size: 13px; min-height: 18px; margin-bottom: 6px; }
-.tabs { display: flex; background: var(--bg); border-radius: 14px; padding: 4px; margin-bottom: 6px; }
-.tabs button { flex: 1; padding: 9px; border-radius: 11px; background: none; color: var(--dim); font-weight: 600; font-size: 13px; }
-.tabs button.on { background: var(--s2); color: var(--tx); }
+.link-btn { background: none; border: 0; padding: 0; color: var(--ac); font-weight: 600; text-decoration: underline; cursor: pointer; display: inline; font-size: inherit; }
+.link-btn:hover { color: var(--ac2); }
 
 /* Header & Theme */
 .app-header { display: flex; align-items: center; justify-content: space-between; padding: 4px 2px 14px; gap: 10px; }
 .header-brand { display: flex; align-items: center; gap: 8px; font-weight: 700; letter-spacing: -0.02em; font-size: 18px; }
 .logo-badge { width: 26px; height: 26px; border-radius: 8px; background: linear-gradient(135deg, var(--ac), var(--ac2)); color: #0b0e1c; display: grid; place-items: center; font-size: 12px; font-weight: 800; }
 .header-right { display: flex; align-items: center; gap: 10px; }
-.session-timer { font-size: 12px; font-weight: 600; color: var(--dim); padding: 5px 12px; border-radius: 20px; background: var(--s2); border: 1px solid var(--line); }
-.session-timer.warn { color: var(--warn); border-color: rgba(255, 209, 102, 0.45); }
 .icon-btn { width: 36px; height: 36px; padding: 0; border-radius: 50%; display: grid; place-items: center; font-size: 16px; }
 
 /* Dashboard Grid */
@@ -122,13 +119,7 @@ label { display: block; margin: 14px 0 6px; font-size: 13px; color: var(--dim); 
 .bal .amt { font-size: 40px; font-weight: 700; letter-spacing: -0.03em; margin: 4px 0 2px; }
 .demo-rate-line { font-size: 12px; color: var(--dim); margin: 6px 0 16px; }
 [data-theme="light"] .bal .demo-rate-line { color: #c0c8eb; }
-.acts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 4px; }
-.acts .btn { padding: 10px 4px; font-size: 12px; text-align: center; }
-
-/* Stats Row */
-.stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
-.stat-card { background: var(--s1); border: 1px solid var(--line); border-radius: 14px; padding: 12px 8px; text-align: center; }
-.stat-val { font-size: 18px; font-weight: 700; color: var(--tx); margin-top: 4px; }
+.acts { margin-top: 14px; }
 
 /* Daily Limit Meter */
 .limit-card { margin-top: 14px; padding: 14px 16px; }
@@ -203,12 +194,6 @@ label { display: block; margin: 14px 0 6px; font-size: 13px; color: var(--dim); 
 .sheet-detail-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
 .sheet-hash { font-family: monospace; font-size: 11px; word-break: break-all; background: var(--bg); padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); color: var(--dim); width: 100%; box-sizing: border-box; }
 
-/* Bottom Nav */
-.bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 440px; background: var(--s1); border-top: 1px solid var(--line); display: flex; justify-content: space-around; padding: 8px 12px 14px; z-index: 50; box-sizing: border-box; }
-.nav-btn { background: none; border: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--dim); font-size: 11px; font-weight: 600; cursor: pointer; padding: 6px 16px; border-radius: 12px; transition: color .15s, background .15s; }
-.nav-btn .nav-icon { font-size: 18px; line-height: 1; }
-.nav-btn.on { color: var(--ac); background: rgba(139,156,255,0.1); }
-[data-theme="light"] .nav-btn.on { color: var(--ac); background: rgba(79,99,246,0.1); }
 
 /* Autofill Fix & Shake */
 input:-webkit-autofill,
@@ -242,7 +227,6 @@ input:-webkit-autofill:active {
     <span>HYQUB</span>
   </div>
   <div class="header-right">
-    <div id="session-timer" class="session-timer" hidden>Session ends in 30:00</div>
     <button id="btn-theme" class="btn icon-btn" type="button" aria-label="Toggle theme">☼</button>
   </div>
 </header>
@@ -253,12 +237,14 @@ input:-webkit-autofill:active {
     <div class="dim">Payments secured with post-quantum signatures</div>
   </div>
   <div id="auth-card" class="card">
-    <div class="tabs"><button id="tab-login" class="on" type="button">Log in</button><button id="tab-signup" type="button">Sign up</button></div>
     <form id="auth-form" autocomplete="off">
       <label for="auth-username">Username</label><input id="auth-username" autocomplete="username" required>
       <label for="auth-password">Password</label><input id="auth-password" type="password" autocomplete="current-password" required>
       <div id="auth-error" class="err" role="alert" style="margin-top:10px"></div>
       <button id="auth-submit" class="btn pri full" type="submit">Log in</button>
+      <div id="auth-switch" class="dim" style="text-align:center;margin-top:14px;font-size:13px">
+        <span id="auth-switch-text">Don't have an account? </span><button id="auth-switch-btn" class="link-btn" type="button">Sign up</button>
+      </div>
     </form>
     <p id="auth-hint" class="dim" hidden>Creating your secure wallet. This can take up to 20 seconds.</p>
   </div>
@@ -288,10 +274,7 @@ input:-webkit-autofill:active {
         <div class="amt"><span id="home-balance">0</span> <span style="font-size:18px">ETH</span></div>
         <div id="home-demo-usd" class="demo-rate-line">≈ $0.00 at a demo rate. Test ETH has no real value.</div>
         <div class="acts">
-          <button id="btn-go-pay" class="btn pri" type="button">Send</button>
-          <button id="btn-go-receive" class="btn" type="button">Receive</button>
-          <button id="btn-refresh" class="btn" type="button">Refresh</button>
-          <button id="btn-toggle-security" class="btn" type="button">Security</button>
+          <button id="btn-go-pay" class="btn pri full" type="button">Send</button>
         </div>
       </div>
 
@@ -303,29 +286,6 @@ input:-webkit-autofill:active {
         <div class="progress-bar">
           <div id="limit-fill" class="progress-fill" style="width:0%"></div>
         </div>
-      </div>
-
-      <div id="card-security" class="card" style="margin-top:0" hidden>
-        <div class="row">
-          <div style="font-weight:600;font-size:14px">Security & Verification</div>
-          <span class="badge ok-badge">Quorum Verified</span>
-        </div>
-        <p id="security-text" class="dim" style="margin:10px 0 0;font-size:13px;line-height:1.5"></p>
-      </div>
-    </div>
-
-    <div class="span-12 stats-row" style="margin-top:0">
-      <div class="stat-card">
-        <div class="dim">Payments</div>
-        <div id="stat-payments" class="stat-val">0</div>
-      </div>
-      <div class="stat-card">
-        <div class="dim">Success rate</div>
-        <div id="stat-rate" class="stat-val">-</div>
-      </div>
-      <div class="stat-card">
-        <div class="dim">Received</div>
-        <div id="stat-received" class="stat-val">0</div>
       </div>
     </div>
 
@@ -487,20 +447,6 @@ input:-webkit-autofill:active {
   </div>
 </div>
 
-<nav id="bottom-nav" class="bottom-nav" hidden>
-  <button id="nav-home" class="nav-btn on" type="button">
-    <span class="nav-icon">⌂</span>
-    <span>Home</span>
-  </button>
-  <button id="nav-pay" class="nav-btn" type="button">
-    <span class="nav-icon">↗</span>
-    <span>Send</span>
-  </button>
-  <button id="nav-receive" class="nav-btn" type="button">
-    <span class="nav-icon">↙</span>
-    <span>Receive</span>
-  </button>
-</nav>
 
 </div>
 <div id="toast" role="status"></div>
