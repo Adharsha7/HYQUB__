@@ -1,11 +1,8 @@
 /** HYQUB UI controller. textContent only, no wallet addresses, token kept in api.js memory. */
 import * as api from './api.js';
-import { parseEthToWei } from './wei.js';
+import { parseEthToWei, weiToEthString } from './wei.js';
 
-// Illustrative conversion rate for demo display only; test ETH has no real value.
-const DEMO_RATE_USD = 2500;
 const DAILY_LIMIT = 1;
-const TEST_STATS = { backend: 91, frontend: 39, updated: 'October 2026' };
 
 const $ = (id) => document.getElementById(id);
 const SCREENS = ['auth', 'home', 'pay', 'receive', 'status'];
@@ -17,6 +14,11 @@ let sessionInterval = null, sessionRemaining = 1800; // 30 minutes
 const show = (n) => {
   SCREENS.forEach((s) => ($(`screen-${s}`).hidden = s !== n));
   updateNav(n);
+  // Show/hide header user controls based on auth state
+  const headerUser = $('header-user');
+  const btnLogout = $('btn-logout');
+  if (headerUser) headerUser.hidden = !user || n === 'auth';
+  if (btnLogout) btnLogout.hidden = !user || n === 'auth';
 };
 const txt = (id, t) => { const e = $(id); if (e) e.textContent = t; };
 const clear = (el) => { while (el && el.firstChild) el.removeChild(el.firstChild); };
@@ -43,16 +45,56 @@ function triggerShake(node) {
   setTimeout(() => node.classList.remove('shake'), 400);
 }
 
+// Theme-derived avatar colors using existing CSS variables
+const AVATAR_PALETTE = [
+  '#8b9cff', '#6677f0', '#4fd69c', '#ffd166', '#ff7a7a',
+  '#c4ceff', '#9bb8ff', '#7ae8c1', '#ffb347', '#e88bff'
+];
+
 function paintAvatar(node, name) {
   let h = 0;
-  for (const c of name) h = (h * 31 + c.charCodeAt(0)) % 360;
-  node.style.background = `hsl(${h} 70% 75%)`;
+  for (const c of name) h = (h * 31 + c.charCodeAt(0)) & 0x7fffffff;
+  const color = AVATAR_PALETTE[h % AVATAR_PALETTE.length];
+  node.style.background = color;
   node.textContent = (name[0] || '?').toUpperCase();
 }
 function avatar(name, lg) {
   const a = el('div', lg ? 'av lg' : 'av');
   paintAvatar(a, name);
   return a;
+}
+function avatarSmall(name) {
+  const a = el('div', 'av');
+  a.style.width = '24px';
+  a.style.height = '24px';
+  a.style.fontSize = '10px';
+  paintAvatar(a, name);
+  return a;
+}
+
+// ---------- Greeting ----------
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+// ---------- Relative Time ----------
+function relativeTime(ts) {
+  const now = Date.now();
+  const then = Number(ts) * 1000;
+  const diff = Math.max(0, now - then);
+  const secs = Math.floor(diff / 1000);
+  if (secs < 60) return 'Just now';
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days}d ago`;
+  return new Date(then).toLocaleDateString([], { dateStyle: 'medium' });
 }
 
 // ---------- Session Countdown (Part D) ----------
@@ -184,25 +226,12 @@ $('btn-logout').onclick = async () => {
   show('auth');
 };
 
-// ---------- Home: Balance & Demo USD ----------
+// ---------- Home: Balance ----------
 const when = (ts) => new Date(ts * 1000).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
-
-function paintDemoUsd(bStr) {
-  const elUsd = $('home-demo-usd');
-  if (!elUsd) return;
-  if (hidden) {
-    elUsd.textContent = '≈ $•••• at a demo rate. Test ETH has no real value.';
-    return;
-  }
-  const n = Number(bStr);
-  const val = isNaN(n) ? '0.00' : (n * DEMO_RATE_USD).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  elUsd.textContent = `≈ $${val} at a demo rate. Test ETH has no real value.`;
-}
 
 function paintBalance() {
   txt('home-balance', hidden ? '••••' : balance);
   txt('btn-eye', hidden ? 'Show' : 'Hide');
-  paintDemoUsd(balance);
 }
 $('btn-eye').onclick = () => {
   hidden = !hidden;
@@ -226,7 +255,6 @@ function animateBalanceCountUp(targetStr) {
     const progress = Math.min(1, elapsed / duration);
     const curr = target * progress;
     txt('home-balance', curr.toFixed(4));
-    paintDemoUsd(curr.toString());
     if (progress < 1) {
       requestAnimationFrame(stepAnim);
     } else {
@@ -245,6 +273,20 @@ if ($('btn-toggle-security')) {
   };
 }
 
+// ---------- Wallet Address ----------
+if ($('btn-copy-addr')) {
+  $('btn-copy-addr').onclick = async () => {
+    const addr = $('home-wallet-addr');
+    if (!addr || !addr.dataset.full) return;
+    try {
+      await navigator.clipboard.writeText(addr.dataset.full);
+      toast('Copied');
+    } catch {
+      toast('Clipboard unavailable');
+    }
+  };
+}
+
 // ---------- Activity Bottom Sheet ----------
 function openSheet(h) {
   activeSheetHash = h.tx_hash || '';
@@ -253,8 +295,8 @@ function openSheet(h) {
   txt('sheet-title', `${sent ? 'Sent' : 'Received'} ${h.amount_eth} ETH`);
 
   const st = $('sheet-status');
-  st.className = `chip-status ${h.status === 'success' ? 'ok' : 'bad'}`;
-  st.textContent = h.status === 'success' ? 'Success' : 'Failed';
+  st.className = `chip-status ${h.status === 'success' ? 'ok' : h.status === 'pending' ? 'pending' : 'bad'}`;
+  st.textContent = h.status === 'success' ? 'Success' : h.status === 'pending' ? 'Pending' : 'Failed';
 
   txt('sheet-party-label', sent ? 'To' : 'From');
   txt('sheet-party', name);
@@ -280,28 +322,73 @@ $('btn-copy-tx').onclick = async () => {
   }
 };
 
+// ---------- Inline SVG Icons ----------
+function svgSent() {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  const line = document.createElementNS(ns, 'line');
+  line.setAttribute('x1', '12'); line.setAttribute('y1', '19');
+  line.setAttribute('x2', '12'); line.setAttribute('y2', '5');
+  const poly = document.createElementNS(ns, 'polyline');
+  poly.setAttribute('points', '5 12 12 5 19 12');
+  svg.append(line, poly);
+  return svg;
+}
+function svgReceived() {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  const line = document.createElementNS(ns, 'line');
+  line.setAttribute('x1', '12'); line.setAttribute('y1', '5');
+  line.setAttribute('x2', '12'); line.setAttribute('y2', '19');
+  const poly = document.createElementNS(ns, 'polyline');
+  poly.setAttribute('points', '19 12 12 19 5 12');
+  svg.append(line, poly);
+  return svg;
+}
+
 // ---------- Activity List & Grouping ----------
 function histRow(h) {
   const sent = h.direction === 'sent';
   const name = h.counterparty ?? 'Unknown';
   const row = el('div', 'item');
 
-  const ico = el('div', `tx-ico ${sent ? 'sent' : 'recv'}`, sent ? '↑' : '↓');
+  const ico = el('div', `tx-ico ${sent ? 'sent' : 'recv'}`);
+  ico.appendChild(sent ? svgSent() : svgReceived());
+
   const mid = el('div', 'mid');
-  mid.append(
-    el('div', 'name', `${sent ? 'To' : 'From'} ${name}`),
-    el('div', 'dim', when(h.created_at))
-  );
+  const nameRow = el('div', 'name');
+  nameRow.append(avatarSmall(name), el('span', '', `${sent ? 'To' : 'From'} ${name}`));
+
+  const timeEl = el('div', 'time-relative', relativeTime(h.created_at));
+  timeEl.title = when(h.created_at);
+  mid.append(nameRow, timeEl);
 
   const right = el('div', 'item-right');
-  right.append(
-    el('div', sent ? '' : 'ok', `${sent ? '-' : '+'}${h.amount_eth} ETH`),
-    el('span', `chip-status ${h.status === 'success' ? 'ok' : 'bad'}`, h.status)
-  );
+  const ethStr = h.value_wei ? weiToEthString(h.value_wei) : (h.amount_eth || '0');
+  const amtEl = el('div', `tx-amount ${sent ? 'sent-amount' : 'recv-amount'}`, `${sent ? '-' : '+'}${ethStr} ETH`);
+  const statusLabel = h.status === 'success' ? 'Success' : h.status === 'pending' ? 'Pending' : 'Failed';
+  const statusCls = h.status === 'success' ? 'ok' : h.status === 'pending' ? 'pending' : 'bad';
+  right.append(amtEl, el('span', `chip-status ${statusCls}`, statusLabel));
 
   row.append(ico, mid, right);
   row.onclick = () => openSheet(h);
   return row;
+}
+
+function dateLabel(d) {
+  return d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
 }
 
 function paintHistory() {
@@ -320,10 +407,12 @@ function paintHistory() {
   $('home-empty').hidden = filtered.length > 0;
   if (filtered.length === 0) return;
 
-  const groups = { TODAY: [], YESTERDAY: [], EARLIER: [] };
   const now = new Date();
   const yest = new Date();
   yest.setDate(now.getDate() - 1);
+
+  // Group by date string for flexible grouping
+  const groups = new Map();
 
   filtered.forEach((h) => {
     const d = new Date(Number(h.created_at) * 1000);
@@ -331,25 +420,27 @@ function paintHistory() {
                     d.getMonth() === now.getMonth() &&
                     d.getDate() === now.getDate();
     if (isToday) {
-      groups.TODAY.push(h);
+      if (!groups.has('Today')) groups.set('Today', []);
+      groups.get('Today').push(h);
       return;
     }
     const isYest = d.getFullYear() === yest.getFullYear() &&
                    d.getMonth() === yest.getMonth() &&
                    d.getDate() === yest.getDate();
     if (isYest) {
-      groups.YESTERDAY.push(h);
+      if (!groups.has('Yesterday')) groups.set('Yesterday', []);
+      groups.get('Yesterday').push(h);
       return;
     }
-    groups.EARLIER.push(h);
+    const label = dateLabel(d);
+    if (!groups.has(label)) groups.set(label, []);
+    groups.get(label).push(h);
   });
 
-  ['TODAY', 'YESTERDAY', 'EARLIER'].forEach((grpName) => {
-    const items = groups[grpName];
-    if (!items || items.length === 0) return;
+  for (const [grpName, items] of groups) {
     list.append(el('div', 'group-label', grpName));
     items.forEach((h) => list.append(histRow(h)));
-  });
+  }
 }
 
 function setHistoryFilter(f) {
@@ -367,14 +458,22 @@ $('tab-filter-fail').onclick = () => setHistoryFilter('fail');
 
 // ---------- Home Screen Lifecycle ----------
 async function goHome() {
+  // Set greeting
+  txt('home-greeting', `${getGreeting()}, ${user.name}`);
+
+  // Set header user pill
+  txt('header-username', user.name);
+  paintAvatar($('header-av'), user.name);
+
+  // Keep hidden elements for backward compat
   txt('home-name', user.name);
   paintAvatar($('home-av'), user.name);
+
   show('home');
 
   const chartEl = $('price-chart');
   if (chartEl && !chartRendered && typeof window.renderPriceChart === 'function') {
-    // Render mock immediately so the chart is never blank
-    window.renderPriceChart(chartEl, { base: DEMO_RATE_USD });
+    window.renderPriceChart(chartEl, { base: 2500 });
     chartRendered = true;
     cleanChartDisclaimer();
     const obs = new MutationObserver(() => cleanChartDisclaimer());
@@ -403,12 +502,31 @@ function cleanChartDisclaimer() {
 async function refreshHome() {
   $('home-skel').hidden = false;
   $('home-empty').hidden = true;
+
+  // Show balance skeleton
+  const balSkel = $('home-bal-skel');
+  const balCard = $('home-bal-card');
+  if (balSkel) balSkel.hidden = false;
+  if (balCard) balCard.style.opacity = '0.4';
+
   try {
     const [me, hist] = await Promise.all([api.getMe(), api.getHistory()]);
     const [w, f = ''] = me.balance_eth.split('.');
     const frac = f.slice(0, 6).replace(/0+$/, '');
     balance = frac ? `${w}.${frac}` : w;
     animateBalanceCountUp(balance);
+
+    // Show wallet address if available
+    if (me.wallet_address) {
+      const addrEl = $('home-wallet-addr');
+      const addrRow = $('home-wallet-addr-row');
+      if (addrEl && addrRow) {
+        const addr = me.wallet_address;
+        addrEl.textContent = `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+        addrEl.dataset.full = addr;
+        addrRow.hidden = false;
+      }
+    }
 
     currentHistory = hist;
     paintHistory();
@@ -442,6 +560,8 @@ async function refreshHome() {
     if (err.status !== 401) toast('Could not load your account. Try Refresh.');
   } finally {
     $('home-skel').hidden = true;
+    if (balSkel) balSkel.hidden = true;
+    if (balCard) balCard.style.opacity = '1';
   }
 }
 if ($('btn-refresh')) {
@@ -533,6 +653,10 @@ function openPay() {
   $('pay-search').focus();
 }
 $('btn-go-pay').onclick = openPay;
+
+// Empty state "Send your first payment" button
+if ($('btn-empty-send')) $('btn-empty-send').onclick = openPay;
+
 $('btn-pay-back').onclick = () => {
   const s = [1, 2, 3].find((i) => !$(`pay-step-${i}`).hidden);
   s > 1 ? step(s - 1) : show('home');

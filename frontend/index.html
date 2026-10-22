@@ -101,6 +101,14 @@ label { display: block; margin: 14px 0 6px; font-size: 13px; color: var(--dim); 
 .header-right { display: flex; align-items: center; gap: 10px; }
 .icon-btn { width: 36px; height: 36px; padding: 0; border-radius: 50%; display: grid; place-items: center; font-size: 16px; }
 
+/* Header user pill */
+.header-user-pill { display: flex; align-items: center; gap: 8px; background: var(--s2); border: 1px solid var(--line); border-radius: 22px; padding: 4px 12px 4px 4px; }
+.header-user-pill .av { width: 28px; height: 28px; font-size: 12px; }
+.header-user-name { font-size: 13px; font-weight: 600; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.btn-logout { background: var(--s2); border: 1px solid var(--line); border-radius: 10px; padding: 7px 14px; font-weight: 600; font-size: 12px; color: var(--dim); transition: background .15s, border-color .15s, color .15s; }
+.btn-logout:hover { border-color: var(--bad); color: var(--bad); }
+.btn-logout svg { vertical-align: middle; margin-right: 4px; }
+
 /* Dashboard Grid */
 .dashboard-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
 .span-4 { grid-column: span 4; }
@@ -108,18 +116,30 @@ label { display: block; margin: 14px 0 6px; font-size: 13px; color: var(--dim); 
 .span-8 { grid-column: span 8; }
 .span-12 { grid-column: span 12; }
 
+/* Greeting */
+.greeting { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 4px; }
+.greeting-sub { font-size: 13px; color: var(--dim); margin-bottom: 16px; }
+
 /* Wallet Card */
-.bal { background: linear-gradient(145deg, #272f66, #14172a); border-radius: 24px; padding: 22px; margin-top: 14px; border: 1px solid #3a4387; box-shadow: 0 12px 30px rgba(0,0,0,0.25); }
+.bal { background: linear-gradient(145deg, #272f66, #14172a); border-radius: 24px; padding: 22px; margin-top: 14px; border: 1px solid #3a4387; position: relative; overflow: hidden; }
+.bal::before { content: ''; position: absolute; inset: -1px; border-radius: 25px; padding: 1px; background: linear-gradient(145deg, rgba(139,156,255,0.4), rgba(102,119,240,0.1), rgba(79,214,156,0.2)); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none; z-index: 1; }
+.bal-glow { position: absolute; top: -40px; right: -40px; width: 180px; height: 180px; background: radial-gradient(circle, rgba(139,156,255,0.12) 0%, transparent 70%); pointer-events: none; }
 [data-theme="light"] .bal { background: linear-gradient(145deg, #3746a6, #212c75); border-color: #5566d8; color: #f4f6fb; }
 .badges-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .badge { display: inline-flex; align-items: center; font-size: 10px; font-weight: 700; letter-spacing: 0.03em; padding: 4px 8px; border-radius: 20px; text-transform: uppercase; line-height: 1; }
 .ml-dsa-badge { background: rgba(139,156,255,0.2); color: #c4ceff; border: 1px solid rgba(139,156,255,0.35); }
 .testnet-badge { background: rgba(255,209,102,0.2); color: #ffd166; border: 1px solid rgba(255,209,102,0.35); }
 .ok-badge { background: rgba(79,214,156,0.18); color: var(--ok); border: 1px solid rgba(79,214,156,0.3); }
-.bal .amt { font-size: 40px; font-weight: 700; letter-spacing: -0.03em; margin: 4px 0 2px; }
+.bal .amt { font-size: 48px; font-weight: 700; letter-spacing: -0.03em; margin: 8px 0 2px; line-height: 1.1; position: relative; z-index: 2; }
+.bal .amt .eth-unit { font-size: 20px; font-weight: 600; color: var(--bal-dim); margin-left: 4px; }
+.bal .wallet-addr-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; position: relative; z-index: 2; }
+.bal .wallet-addr { font-size: 11px; font-family: "SF Mono", "Consolas", monospace; color: var(--bal-dim); opacity: 0.7; }
+.btn-copy-addr { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; padding: 3px 8px; font-size: 10px; color: var(--bal-dim); cursor: pointer; transition: background .15s; }
+.btn-copy-addr:hover { background: rgba(255,255,255,0.16); }
 .demo-rate-line { font-size: 12px; color: var(--dim); margin: 6px 0 16px; }
 [data-theme="light"] .bal .demo-rate-line { color: #c0c8eb; }
-.acts { margin-top: 14px; }
+.acts { margin-top: 14px; display: flex; gap: 10px; }
+.acts .btn { flex: 1; }
 
 /* Daily Limit Meter */
 .limit-card { margin-top: 14px; padding: 14px 16px; }
@@ -136,21 +156,41 @@ label { display: block; margin: 14px 0 6px; font-size: 13px; color: var(--dim); 
 .group-label:first-child { margin-top: 4px; }
 .contacts { display: flex; gap: 14px; overflow-x: auto; padding: 4px 2px 8px; scrollbar-width: none; }
 .contact { background: none; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; color: var(--dim); min-width: 60px; }
-.item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+.item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); cursor: pointer; transition: background .15s; border-radius: 8px; }
+.item:hover { background: rgba(139,156,255,0.04); }
 .item:last-child { border: 0; }
 .item .mid { flex: 1; min-width: 0; }
-.item .name { font-weight: 600; font-size: 14px; }
-.tx-ico { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-size: 16px; font-weight: 700; flex: none; }
+.item .name { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+.item .name .av { width: 24px; height: 24px; font-size: 10px; }
+.tx-ico { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; flex: none; }
 .tx-ico.sent { background: rgba(255,122,122,0.15); color: var(--bad); }
 .tx-ico.recv { background: rgba(79,214,156,0.15); color: var(--ok); }
-.item-right { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.tx-ico svg { width: 16px; height: 16px; }
+.item-right { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.item-right .tx-amount { font-size: 14px; font-weight: 600; }
+.item-right .tx-amount.sent-amount { color: var(--tx); }
+.item-right .tx-amount.recv-amount { color: var(--ok); }
 .chip-status { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 6px; border-radius: 6px; display: inline-block; }
 .chip-status.ok { background: rgba(79,214,156,0.15); color: var(--ok); }
 .chip-status.bad { background: rgba(255,122,122,0.15); color: var(--bad); }
+.chip-status.pending { background: rgba(255,209,102,0.15); color: var(--warn); animation: pulsePending 2s infinite ease-in-out; }
+@keyframes pulsePending { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+.item .time-relative { font-size: 12px; color: var(--dim); }
 .hash { display: none; word-break: break-all; font-size: 11px; color: var(--dim); margin-top: 4px; }
 .item.open .hash { display: block; }
+
+/* Skeleton placeholders */
 .skel { height: 52px; border-radius: 12px; margin: 8px 0; background: linear-gradient(90deg, var(--s2), #2a3050, var(--s2)); background-size: 200% 100%; animation: sh 1.2s infinite; }
+.skel-balance { height: 160px; border-radius: 24px; margin-bottom: 14px; background: linear-gradient(90deg, var(--s2), #2a3050, var(--s2)); background-size: 200% 100%; animation: sh 1.2s infinite; }
 @keyframes sh { to { background-position: -200% 0; } }
+
+/* Empty state */
+.empty-state { display: flex; flex-direction: column; align-items: center; padding: 32px 16px; text-align: center; }
+.empty-state-icon { width: 64px; height: 64px; border-radius: 50%; background: var(--s2); display: grid; place-items: center; margin-bottom: 14px; }
+.empty-state-icon svg { width: 28px; height: 28px; color: var(--dim); }
+.empty-state-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+.empty-state-sub { font-size: 13px; color: var(--dim); margin-bottom: 16px; }
+.empty-state .btn { font-size: 13px; padding: 9px 20px; }
 
 /* Send Screen & Keypad */
 .steps { display: flex; gap: 6px; margin: 14px 0 4px; }
@@ -211,10 +251,18 @@ input:-webkit-autofill:active {
 }
 .shake { animation: shake 0.35s ease; }
 
+/* Toast */
 #toast { position: fixed; left: 50%; bottom: 80px; transform: translateX(-50%); background: var(--s2); border: 1px solid var(--line); padding: 11px 18px; border-radius: 14px; opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 120; font-size: 13px; font-weight: 600; box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
 #toast.on { opacity: 1; }
+
 @media(prefers-reduced-motion: reduce) {
   *, ::before, ::after { animation: none !important; transition: none !important; }
+}
+@media (max-width: 360px) {
+  .bal .amt { font-size: 32px; }
+  .greeting { font-size: 18px; }
+  .header-user-name { max-width: 60px; }
+  .acts { flex-direction: column; }
 }
 </style>
 </head>
@@ -227,6 +275,14 @@ input:-webkit-autofill:active {
     <span>HYQUB</span>
   </div>
   <div class="header-right">
+    <div id="header-user" class="header-user-pill" hidden>
+      <div id="header-av" class="av"></div>
+      <span id="header-username" class="header-user-name"></span>
+    </div>
+    <button id="btn-logout" class="btn-logout" type="button" hidden>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Log out
+    </button>
     <button id="btn-theme" class="btn icon-btn" type="button" aria-label="Toggle theme">☼</button>
   </div>
 </header>
@@ -251,30 +307,36 @@ input:-webkit-autofill:active {
 </section>
 
 <section id="screen-home" hidden>
-  <div class="row">
-    <div class="row" style="justify-content:flex-start">
-      <div id="home-av" class="av"></div>
-      <div><div class="dim">Welcome back</div><h2 id="home-name"></h2></div>
-    </div>
-    <button id="btn-logout" class="btn">Log out</button>
-  </div>
+  <!-- Greeting -->
+  <div id="home-greeting" class="greeting"></div>
+  <div class="greeting-sub">Your post-quantum secured wallet</div>
 
-  <section class="dashboard-grid" style="margin-top:14px">
+  <section class="dashboard-grid" style="margin-top:0">
     <div id="price-chart" class="span-8"></div>
     <div class="span-4" style="display:flex;flex-direction:column;gap:14px">
-      <div class="bal" style="margin-top:0">
-        <div class="row" style="margin-bottom:12px">
+
+      <!-- Balance skeleton -->
+      <div id="home-bal-skel" class="skel-balance" hidden></div>
+
+      <div id="home-bal-card" class="bal" style="margin-top:0">
+        <div class="bal-glow"></div>
+        <div class="row" style="margin-bottom:12px;position:relative;z-index:2">
           <div class="badges-row">
             <span class="badge ml-dsa-badge">Protected by ML-DSA</span>
             <span class="badge testnet-badge">Test network</span>
           </div>
           <button id="btn-eye" class="btn" style="padding:6px 12px;font-size:12px" aria-label="Show or hide balance">Hide</button>
         </div>
-        <div class="dim" style="color:var(--bal-dim);font-size:13px">Available balance</div>
-        <div class="amt"><span id="home-balance">0</span> <span style="font-size:18px">ETH</span></div>
-        <div id="home-demo-usd" class="demo-rate-line">≈ $0.00 at a demo rate. Test ETH has no real value.</div>
+        <div class="dim" style="color:var(--bal-dim);font-size:13px;position:relative;z-index:2">Available balance</div>
+        <div class="amt"><span id="home-balance">0</span> <span class="eth-unit">ETH</span></div>
+        <div id="home-demo-usd" class="demo-rate-line"></div>
+        <div id="home-wallet-addr-row" class="wallet-addr-row" hidden>
+          <span id="home-wallet-addr" class="wallet-addr"></span>
+          <button id="btn-copy-addr" class="btn-copy-addr" type="button" aria-label="Copy wallet address">Copy</button>
+        </div>
         <div class="acts">
           <button id="btn-go-pay" class="btn pri full" type="button">Send</button>
+          <button id="btn-go-receive" class="btn full" type="button">Receive</button>
         </div>
       </div>
 
@@ -296,7 +358,10 @@ input:-webkit-autofill:active {
 
     <div class="card activity-card span-12" style="margin-top:0">
       <div class="activity-header">
-        <h2 style="font-size:16px">Activity</h2>
+        <div class="row">
+          <h2 style="font-size:16px">Activity</h2>
+          <button id="btn-refresh" class="btn" type="button" style="padding:6px 14px;font-size:12px">Refresh</button>
+        </div>
         <div class="act-tabs">
           <button id="tab-filter-all" class="on" type="button">All</button>
           <button id="tab-filter-sent" type="button">Sent</button>
@@ -304,11 +369,26 @@ input:-webkit-autofill:active {
           <button id="tab-filter-fail" type="button">Failed</button>
         </div>
       </div>
-      <div id="home-skel"><div class="skel"></div><div class="skel"></div></div>
-      <div id="home-empty" class="dim" style="padding:14px 0" hidden>No payments yet. Tap Send to make your first one.</div>
+      <div id="home-skel"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+      <div id="home-empty" hidden>
+        <div class="empty-state">
+          <div class="empty-state-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            </svg>
+          </div>
+          <div class="empty-state-title">No payments yet</div>
+          <div class="empty-state-sub">Start by sending a payment to someone</div>
+          <button id="btn-empty-send" class="btn pri" type="button">Send your first payment</button>
+        </div>
+      </div>
       <div id="home-history"></div>
     </div>
   </section>
+
+  <!-- Hidden elements kept for JS compatibility -->
+  <div id="home-av" class="av" hidden></div>
+  <h2 id="home-name" hidden></h2>
 </section>
 
 <section id="screen-pay" hidden>
@@ -449,7 +529,7 @@ input:-webkit-autofill:active {
 
 
 </div>
-<div id="toast" role="status"></div>
+<div id="toast" role="status" aria-live="polite"></div>
 <script src="js/price-chart.js"></script>
 <script type="module" src="js/app.js"></script>
 </body>
