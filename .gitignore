@@ -104,3 +104,8 @@ hyqub.db
 
 # Local frontend config
 frontend/js/config.local.js
+
+# Runtime logs directory and Anvil state
+logs/
+anvil-state.json
+
