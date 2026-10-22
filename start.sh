@@ -98,7 +98,7 @@ if [ ! -f "$REPO_ROOT/anvil-state.json" ]; then
     fi
 fi
 
-anvil --state "$REPO_ROOT/anvil-state.json" > "$REPO_ROOT/logs/anvil.log" 2>&1 &
+anvil --code-size-limit 40000 --state "$REPO_ROOT/anvil-state.json" > "$REPO_ROOT/logs/anvil.log" 2>&1 &
 ANVIL_PID=$!
 
 ANVIL_RPC="http://127.0.0.1:8545"
