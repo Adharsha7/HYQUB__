@@ -45,6 +45,55 @@ function triggerShake(node) {
   setTimeout(() => node.classList.remove('shake'), 400);
 }
 
+// ---------- Network Reachability Banner ----------
+function showNetworkBanner(msg) {
+  const b = $('network-banner');
+  if (!b) return;
+  const t = $('network-banner-text');
+  if (t && msg) t.textContent = msg;
+  b.hidden = false;
+}
+function hideNetworkBanner() {
+  const b = $('network-banner');
+  if (b) b.hidden = true;
+}
+
+// ---------- Friendly Error Mapping ----------
+function friendlyError(err) {
+  if (!err) return 'Something went wrong. Please try again.';
+  if (err.code === 'NETWORK' || err.status === 0) {
+    return 'Cannot reach the server. Check that the backend is running.';
+  }
+  if (err.code === 'WRONG_PASSWORD') {
+    return 'Wrong password. Nothing was sent.';
+  }
+  if (err.status === 401) {
+    return 'Your session has expired. Please log in again.';
+  }
+  if (err.code === 'INSUFFICIENT_BALANCE') {
+    return 'Your balance is too low for this payment.';
+  }
+  if (err.code === 'LIMIT_EXCEEDED') {
+    return err.message || 'Payment exceeds daily or per-transaction limit.';
+  }
+  if (err.code === 'RATE_LIMITED' || err.status === 429) {
+    return 'Too many attempts. Please wait a minute and try again.';
+  }
+  if (err.code === 'SELF_PAYMENT') {
+    return 'You cannot send money to yourself.';
+  }
+  if (err.code === 'RECIPIENT_NOT_FOUND') {
+    return 'Recipient was not found.';
+  }
+  if (err.code === 'INVALID_AMOUNT') {
+    return err.message || 'Enter a valid positive amount with up to 18 decimals.';
+  }
+  if (err.status === 503) {
+    return 'Payment service is temporarily unavailable. Please try again shortly.';
+  }
+  return err.message || 'Payment failed. Nothing was sent. Please try again.';
+}
+
 // Theme-derived avatar colors using existing CSS variables
 const AVATAR_PALETTE = [
   '#8b9cff', '#6677f0', '#4fd69c', '#ffd166', '#ff7a7a',
@@ -196,15 +245,17 @@ $('auth-form').addEventListener('submit', async (e) => {
   $('auth-hint').hidden = false;
   try {
     const d = signup ? await api.signup(u, p) : await api.login(u, p);
+    hideNetworkBanner();
     user = { id: d.user_id, name: d.name };
     $('auth-password').value = '';
     startSessionTimer();
     await goHome();
   } catch (err) {
+    if (err.code === 'NETWORK' || err.status === 0) showNetworkBanner();
     triggerShake($('auth-card'));
     txt('auth-error', err.status === 409 ? 'That username is taken. Try another one.'
       : err.status === 401 ? 'Wrong username or password.'
-      : err.status === 429 ? 'Too many attempts. Wait a minute and try again.' : err.message);
+      : err.status === 429 ? 'Too many attempts. Wait a minute and try again.' : friendlyError(err));
   } finally {
     btn.disabled = false;
     $('auth-hint').hidden = true;
@@ -302,6 +353,35 @@ function openSheet(h) {
   txt('sheet-party', name);
   txt('sheet-time', when(h.created_at));
   txt('sheet-hash', activeSheetHash || 'Not available');
+
+  // "How this payment was verified"
+  const list = $('sheet-verify-list');
+  if (list) {
+    clear(list);
+    const txStatus = h.status; // 'success' | 'failed' | 'pending'
+    if (txStatus === 'success') {
+      if (sent) {
+        const sigRow = el('div', 'sheet-verify-item');
+        sigRow.append(el('div', 'sheet-verify-dot done', '✓'), el('span', '', 'Signed with ML-DSA-65 (post-quantum)'));
+        list.append(sigRow);
+      }
+      const chainRow = el('div', 'sheet-verify-item');
+      chainRow.append(el('div', 'sheet-verify-dot done', '✓'), el('span', '', 'Submitted to local test chain'));
+      list.append(chainRow);
+
+      const outcomeRow = el('div', 'sheet-verify-item');
+      outcomeRow.append(el('div', 'sheet-verify-dot done', '✓'), el('span', '', 'Payment recorded as successful'));
+      list.append(outcomeRow);
+    } else if (txStatus === 'pending') {
+      const pendingRow = el('div', 'sheet-verify-item');
+      pendingRow.append(el('div', 'sheet-verify-dot pending', '⏳'), el('span', '', 'Processing'));
+      list.append(pendingRow);
+    } else {
+      const failRow = el('div', 'sheet-verify-item');
+      failRow.append(el('div', 'sheet-verify-dot fail', '✕'), el('span', '', 'Payment did not complete'));
+      list.append(failRow);
+    }
+  }
 
   $('sheet-backdrop').hidden = false;
   $('tx-sheet').hidden = false;
@@ -511,6 +591,7 @@ async function refreshHome() {
 
   try {
     const [me, hist] = await Promise.all([api.getMe(), api.getHistory()]);
+    hideNetworkBanner();
     const [w, f = ''] = me.balance_eth.split('.');
     const frac = f.slice(0, 6).replace(/0+$/, '');
     balance = frac ? `${w}.${frac}` : w;
@@ -557,6 +638,7 @@ async function refreshHome() {
       box.append(b);
     });
   } catch (err) {
+    if (err.code === 'NETWORK' || err.status === 0) showNetworkBanner();
     if (err.status !== 401) toast('Could not load your account. Try Refresh.');
   } finally {
     $('home-skel').hidden = true;
@@ -601,22 +683,70 @@ function step(n) {
 function updateKeypadDisplay() {
   $('pay-amount').value = keypadAmount || '0';
 }
+
+function validateAmountLive(val) {
+  const node = $('pay-amount-val');
+  if (!node) return true;
+  const trimmed = (val ?? '').trim();
+  if (!trimmed || trimmed === '0') {
+    node.className = 'inline-val dim';
+    node.textContent = 'Up to 0.5 ETH per payment and 1 ETH per day';
+    return false;
+  }
+  try {
+    const wei = parseEthToWei(trimmed);
+    const maxWei = parseEthToWei('0.5');
+    if (BigInt(wei) > BigInt(maxWei)) {
+      node.className = 'inline-val err';
+      node.textContent = 'Exceeds 0.5 ETH per-payment limit';
+      return false;
+    }
+    if (balance && balance !== '0') {
+      try {
+        const balWei = parseEthToWei(balance);
+        if (BigInt(wei) > BigInt(balWei)) {
+          node.className = 'inline-val err';
+          node.textContent = `Exceeds current balance (${balance} ETH)`;
+          return false;
+        }
+      } catch { /* proceed */ }
+    }
+    node.className = 'inline-val ok';
+    node.textContent = 'Valid amount (up to 0.5 ETH)';
+    return true;
+  } catch {
+    node.className = 'inline-val err';
+    node.textContent = 'Enter a valid amount like 0.05';
+    return false;
+  }
+}
+
+function setAmount(amtStr) {
+  txt('pay-error', '');
+  keypadAmount = amtStr;
+  updateKeypadDisplay();
+  validateAmountLive(keypadAmount);
+}
+
 function handleKeypadKey(k) {
   txt('pay-error', '');
   if (k === 'back') {
     keypadAmount = keypadAmount.slice(0, -1);
     updateKeypadDisplay();
+    validateAmountLive(keypadAmount);
     return;
   }
   if (k === '.') {
     if (keypadAmount.includes('.')) return;
     keypadAmount = keypadAmount ? `${keypadAmount}.` : '0.';
     updateKeypadDisplay();
+    validateAmountLive(keypadAmount);
     return;
   }
   if (keypadAmount === '0') {
     keypadAmount = k;
     updateKeypadDisplay();
+    validateAmountLive(keypadAmount);
     return;
   }
   if (keypadAmount.includes('.')) {
@@ -627,6 +757,7 @@ function handleKeypadKey(k) {
   }
   keypadAmount += k;
   updateKeypadDisplay();
+  validateAmountLive(keypadAmount);
 }
 
 document.querySelectorAll('.keypad .key').forEach((btn) => {
@@ -634,8 +765,7 @@ document.querySelectorAll('.keypad .key').forEach((btn) => {
 });
 document.querySelectorAll('.chips .chip').forEach((c) => {
   c.onclick = () => {
-    keypadAmount = c.dataset.amt || '';
-    updateKeypadDisplay();
+    setAmount(c.dataset.amt || '');
   };
 });
 
@@ -647,6 +777,12 @@ function openPay() {
   $('pay-search').value = '';
   $('pay-password').value = '';
   updateKeypadDisplay();
+  validateAmountLive('');
+  const valEl = $('pay-recipient-val');
+  if (valEl) {
+    valEl.className = 'inline-val dim';
+    valEl.textContent = '';
+  }
   clear($('pay-results'));
   step(1);
   show('pay');
@@ -667,8 +803,14 @@ function choose(u) {
   idemKey = null;
   keypadAmount = '';
   updateKeypadDisplay();
+  validateAmountLive('');
   paintAvatar($('p2-av'), u.name);
   txt('p2-name', u.name);
+  const valEl = $('pay-recipient-val');
+  if (valEl) {
+    valEl.className = 'inline-val ok';
+    valEl.textContent = `Selected: ${u.name}`;
+  }
   step(2);
 }
 async function quickPick(name) {
@@ -681,36 +823,80 @@ async function quickPick(name) {
 
 $('pay-search').addEventListener('input', () => {
   clearTimeout(timer);
-  const q = $('pay-search').value.trim(), box = $('pay-results');
-  if (!q) return clear(box);
+  const q = $('pay-search').value.trim(), box = $('pay-results'), valEl = $('pay-recipient-val');
+  if (!q) {
+    if (valEl) {
+      valEl.className = 'inline-val dim';
+      valEl.textContent = '';
+    }
+    return clear(box);
+  }
+  if (valEl) {
+    valEl.className = 'inline-val dim';
+    valEl.textContent = 'Searching...';
+  }
   timer = setTimeout(async () => {
     try {
       const users = await api.searchUsers(q);
+      hideNetworkBanner();
       clear(box);
-      if (!users.length) box.append(el('div', 'dim', 'No one found with that name.'));
-      users.forEach((u) => {
-        const r = el('div', 'item');
-        r.append(avatar(u.name), el('div', 'name', u.name));
-        r.onclick = () => choose(u);
-        box.append(r);
-      });
-    } catch { /* ignore while typing */ }
+      if (!users.length) {
+        if (valEl) {
+          valEl.className = 'inline-val err';
+          valEl.textContent = 'No one found with that name';
+        }
+        box.append(el('div', 'dim', 'No one found with that name.'));
+      } else {
+        if (valEl) {
+          valEl.className = 'inline-val ok';
+          valEl.textContent = `Found ${users.length} match${users.length > 1 ? 'es' : ''}`;
+        }
+        users.forEach((u) => {
+          const r = el('div', 'item');
+          r.append(avatar(u.name), el('div', 'name', u.name));
+          r.onclick = () => choose(u);
+          box.append(r);
+        });
+      }
+    } catch (err) {
+      if (err.code === 'NETWORK' || err.status === 0) showNetworkBanner();
+      if (valEl) {
+        valEl.className = 'inline-val err';
+        valEl.textContent = 'Search failed';
+      }
+    }
   }, 250);
 });
 
 $('p2-next').onclick = () => {
   const a = keypadAmount.trim();
   try {
-    parseEthToWei(a);
+    const wei = parseEthToWei(a);
+    const maxWei = parseEthToWei('0.5');
+    if (BigInt(wei) > BigInt(maxWei)) {
+      triggerShake($('amount-container'));
+      return txt('pay-error', 'Payment exceeds 0.5 ETH per-payment limit.');
+    }
+    if (balance && balance !== '0') {
+      const balWei = parseEthToWei(balance);
+      if (BigInt(wei) > BigInt(balWei)) {
+        triggerShake($('amount-container'));
+        return txt('pay-error', `Payment exceeds available balance (${balance} ETH).`);
+      }
+    }
   } catch {
     triggerShake($('amount-container'));
-    return txt('pay-error', 'Enter an amount like 0.01.');
+    return txt('pay-error', 'Enter a valid ETH amount (e.g. 0.05).');
   }
   amount = a;
   idemKey = crypto.randomUUID();
   txt('p3-amt', `${a} ETH`);
+  txt('review-amount', `${a} ETH`);
+  txt('review-from-name', user.name);
+  paintAvatar($('review-from-av'), user.name);
   txt('p3-name', to.name);
   paintAvatar($('p3-av'), to.name);
+  txt('review-network', 'Local test chain');
   step(3);
   $('pay-password').focus();
 };
@@ -738,44 +924,61 @@ $('status-copy').onclick = async () => {
   }
 };
 
+if ($('btn-copy-rec-tx')) {
+  $('btn-copy-rec-tx').onclick = async () => {
+    if (!lastReceipt || !lastReceipt.tx) return;
+    try {
+      await navigator.clipboard.writeText(lastReceipt.tx);
+      toast('Copied');
+    } catch {
+      toast('Clipboard unavailable');
+    }
+  };
+}
+
+if ($('status-send-another')) {
+  $('status-send-another').onclick = () => {
+    openPay();
+  };
+}
+
 $('pay-submit').onclick = async () => {
+  const btn = $('pay-submit');
+  if (btn.disabled) return;
   const pw = $('pay-password').value;
   if (!pw) {
     triggerShake($('pay-step-3'));
     return txt('pay-error', 'Enter your password to confirm.');
   }
-  const btn = $('pay-submit');
   btn.disabled = true;
   $('status-receipt').hidden = true;
   $('status-copy').hidden = true;
+  if ($('btn-copy-rec-tx')) $('btn-copy-rec-tx').hidden = true;
+  if ($('status-send-another')) $('status-send-another').hidden = true;
   const tl = $('status-timeline');
   if (tl) tl.hidden = true;
-  status('spin', 'Verifying...', 'Signing and checking your payment securely.');
+
+  status('spin', 'Processing payment...', 'Submitting your payment securely to the network.');
   try {
     const r = await api.pay(to.id, amount, pw, idemKey);
+    hideNetworkBanner();
     lastReceipt = { to: r.to, amount: r.amount_eth, tx: r.tx_hash || '' };
     txt('rec-to', r.to);
     txt('rec-amt', `${r.amount_eth} ETH`);
     txt('rec-tx', r.tx_hash || 'Confirmed on-chain');
     $('status-receipt').hidden = false;
     $('status-copy').hidden = false;
-    if (tl) tl.hidden = false;
+    if ($('btn-copy-rec-tx')) $('btn-copy-rec-tx').hidden = !r.tx_hash;
+    if ($('status-send-another')) $('status-send-another').hidden = false;
     status('good', 'Payment sent', `${r.amount_eth} ETH sent to ${r.to}.`, true, false);
   } catch (err) {
+    if (err.code === 'NETWORK' || err.status === 0) showNetworkBanner();
     if (tl) tl.hidden = true;
     if (err.status === 401 && err.code !== 'WRONG_PASSWORD') return;
     if (err.code === 'WRONG_PASSWORD') {
       toast('Wrong password. Nothing was sent.');
     }
-    const m = {
-      WRONG_PASSWORD: 'Wrong password. Nothing was sent.',
-      INSUFFICIENT_BALANCE: 'Your balance is too low for this payment.',
-      LIMIT_EXCEEDED: err.message,
-      RATE_LIMITED: 'Too many payments. Wait a minute and try again.',
-      SELF_PAYMENT: 'You cannot send money to yourself.',
-      RECIPIENT_NOT_FOUND: 'That person was not found.',
-      INVALID_AMOUNT: err.message
-    }[err.code] || 'Payment failed. Nothing was sent. Please try again.';
+    const m = friendlyError(err);
     status('fail', 'Payment not sent', m, false, true);
   } finally {
     btn.disabled = false;

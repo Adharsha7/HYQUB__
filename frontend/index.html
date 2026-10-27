@@ -255,6 +255,104 @@ input:-webkit-autofill:active {
 #toast { position: fixed; left: 50%; bottom: 80px; transform: translateX(-50%); background: var(--s2); border: 1px solid var(--line); padding: 11px 18px; border-radius: 14px; opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 120; font-size: 13px; font-weight: 600; box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
 #toast.on { opacity: 1; }
 
+/* Network Banner */
+.network-banner {
+  background: rgba(255, 122, 122, 0.16);
+  border: 1px solid var(--bad);
+  color: var(--bad);
+  padding: 10px 14px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: slideDown .2s ease;
+}
+@keyframes slideDown { from { transform: translateY(-8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+/* Inline Validation Messages */
+.inline-val { font-size: 12px; min-height: 18px; margin: 4px 0 6px; }
+.inline-val.err { color: var(--bad); }
+.inline-val.ok { color: var(--ok); }
+.inline-val.dim { color: var(--dim); }
+
+/* Review Summary Card */
+.review-card {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin: 12px 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.review-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+.review-party {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.review-party .av {
+  width: 24px;
+  height: 24px;
+  font-size: 10px;
+}
+
+/* Verification list in tx sheet */
+.sheet-verify-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-top: 6px;
+}
+.sheet-verify-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.sheet-verify-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  flex: none;
+}
+.sheet-verify-dot.done {
+  background: rgba(79, 214, 156, 0.2);
+  color: var(--ok);
+}
+.sheet-verify-dot.pending {
+  background: rgba(255, 209, 102, 0.2);
+  color: var(--warn);
+  animation: pulsePending 1.5s infinite;
+}
+.sheet-verify-dot.fail {
+  background: rgba(255, 122, 122, 0.2);
+  color: var(--bad);
+}
+.sheet-verify-dot.idle {
+  background: var(--s2);
+  color: var(--dim);
+}
+
+
 @media(prefers-reduced-motion: reduce) {
   *, ::before, ::after { animation: none !important; transition: none !important; }
 }
@@ -268,6 +366,10 @@ input:-webkit-autofill:active {
 </head>
 <body>
 <div class="app">
+<div id="network-banner" class="network-banner" hidden role="alert">
+  <span style="font-size:15px">⚠</span>
+  <span id="network-banner-text">Cannot reach the server. Check that the backend is running.</span>
+</div>
 
 <header class="app-header">
   <div class="header-brand">
@@ -399,6 +501,7 @@ input:-webkit-autofill:active {
   <div id="pay-step-1" class="card" style="margin-top:6px">
     <label for="pay-search" style="margin-top:0">Who are you sending to?</label>
     <input id="pay-search" placeholder="Search by name" autocomplete="off">
+    <div id="pay-recipient-val" class="inline-val dim" role="status"></div>
     <div id="pay-results" style="margin-top:8px"></div>
   </div>
 
@@ -414,11 +517,11 @@ input:-webkit-autofill:active {
         <span class="amount-unit">ETH</span>
       </div>
     </div>
-    <div class="dim" style="text-align:center">Up to 0.5 per payment and 1 per day.</div>
+    <div id="pay-amount-val" class="inline-val dim" role="status" style="text-align:center">Up to 0.5 ETH per payment and 1 ETH per day</div>
     <div class="chips">
-      <button type="button" class="chip" data-amt="0.01">0.01</button>
-      <button type="button" class="chip" data-amt="0.05">0.05</button>
-      <button type="button" class="chip" data-amt="0.1">0.1</button>
+      <button type="button" class="chip" data-amt="0.01">0.01 ETH</button>
+      <button type="button" class="chip" data-amt="0.05">0.05 ETH</button>
+      <button type="button" class="chip" data-amt="0.1">0.1 ETH</button>
     </div>
     <div class="keypad">
       <button type="button" class="key" data-k="1">1</button>
@@ -438,14 +541,36 @@ input:-webkit-autofill:active {
   </div>
 
   <div id="pay-step-3" class="card" style="margin-top:6px" hidden>
-    <div class="sum">
-      <div id="p3-av" class="av lg" style="margin:0 auto 8px"></div>
-      <div class="dim">You are sending</div>
-      <h2 id="p3-amt" style="font-size:32px"></h2>
-      <div class="dim">to <b id="p3-name"></b></div>
+    <div class="sum" style="margin-bottom:12px">
+      <div class="dim">Review payment</div>
+      <h2 id="p3-amt" style="font-size:32px;margin:4px 0"></h2>
+    </div>
+    <div class="review-card">
+      <div class="review-row">
+        <span class="dim">From</span>
+        <div class="review-party">
+          <div id="review-from-av" class="av"></div>
+          <span id="review-from-name" style="font-weight:600"></span>
+        </div>
+      </div>
+      <div class="review-row">
+        <span class="dim">To</span>
+        <div class="review-party">
+          <div id="p3-av" class="av"></div>
+          <span id="p3-name" style="font-weight:600"></span>
+        </div>
+      </div>
+      <div class="review-row">
+        <span class="dim">Amount</span>
+        <span id="review-amount" style="font-weight:700"></span>
+      </div>
+      <div class="review-row">
+        <span class="dim">Network</span>
+        <span id="review-network" class="badge testnet-badge" style="font-size:11px">Local test chain</span>
+      </div>
     </div>
     <label for="pay-password">Confirm with your password</label>
-    <input id="pay-password" type="password" autocomplete="current-password">
+    <input id="pay-password" type="password" autocomplete="current-password" placeholder="Enter password">
     <button id="pay-submit" class="btn pri full" type="button" style="margin-top:16px">Confirm and send</button>
   </div>
 </section>
@@ -467,34 +592,21 @@ input:-webkit-autofill:active {
     <div id="status-ring" class="ring spin"></div>
     <h2 id="status-title"></h2>
     <p id="status-sub" class="dim"></p>
-    <div id="status-timeline" class="timeline" hidden>
-      <div class="timeline-step" style="--delay: 0ms">
-        <div class="timeline-dot">✓</div>
-        <div class="timeline-text">Signed with ML-DSA</div>
-      </div>
-      <div class="timeline-step" style="--delay: 250ms">
-        <div class="timeline-dot">✓</div>
-        <div class="timeline-text">Verifier A approved</div>
-      </div>
-      <div class="timeline-step" style="--delay: 500ms">
-        <div class="timeline-dot">✓</div>
-        <div class="timeline-text">Verifier B approved</div>
-      </div>
-      <div class="timeline-step" style="--delay: 750ms">
-        <div class="timeline-dot">✓</div>
-        <div class="timeline-text">Approval token issued</div>
-      </div>
-    </div>
+    <div id="status-timeline" class="timeline" hidden></div>
     <div id="status-receipt" class="receipt-card" hidden>
       <div class="row"><span class="dim">To</span><span id="rec-to" style="font-weight:600"></span></div>
       <div class="row" style="margin-top:8px"><span class="dim">Amount</span><span id="rec-amt" style="font-weight:600"></span></div>
-      <div class="row" style="margin-top:8px;flex-direction:column;align-items:flex-start;gap:4px">
-        <span class="dim">Transaction</span>
-        <div id="rec-tx" class="sheet-hash"></div>
+      <div class="row" style="margin-top:8px;flex-direction:column;align-items:flex-start;gap:6px">
+        <span class="dim">Transaction hash</span>
+        <div style="display:flex;width:100%;gap:8px;align-items:center">
+          <div id="rec-tx" class="sheet-hash" style="flex:1"></div>
+          <button id="btn-copy-rec-tx" class="btn" type="button" style="padding:6px 12px;font-size:12px">Copy</button>
+        </div>
       </div>
     </div>
-    <div class="row" style="margin-top:16px;justify-content:center;gap:10px">
+    <div class="row" style="margin-top:16px;justify-content:center;gap:10px;flex-wrap:wrap">
       <button id="status-copy" class="btn" hidden type="button">Copy receipt</button>
+      <button id="status-send-another" class="btn" hidden type="button">Send another</button>
       <button id="status-done" class="btn pri" hidden type="button">Done</button>
       <button id="status-retry" class="btn pri" hidden type="button">Try again</button>
     </div>
@@ -520,6 +632,10 @@ input:-webkit-autofill:active {
   <div class="sheet-detail-row" style="flex-direction:column;align-items:flex-start;gap:4px">
     <span class="dim">Transaction hash</span>
     <div id="sheet-hash" class="sheet-hash"></div>
+  </div>
+  <div class="sheet-verify-section" style="margin-top:14px;text-align:left">
+    <div class="dim" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">How this payment was verified</div>
+    <div id="sheet-verify-list" class="sheet-verify-list"></div>
   </div>
   <div style="display:flex;gap:10px;margin-top:18px">
     <button id="btn-copy-tx" class="btn pri full" type="button">Copy transaction hash</button>
