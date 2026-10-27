@@ -101,6 +101,26 @@ fi
 anvil --code-size-limit 40000 --state "$REPO_ROOT/anvil-state.json" > "$REPO_ROOT/logs/anvil.log" 2>&1 &
 ANVIL_PID=$!
 
+stop_anvil_on_failure() {
+    local exit_code=$?
+    if [ $exit_code -ne 0 ]; then
+        if [ -n "$BACKEND_PID" ] && kill -0 "$BACKEND_PID" 2>/dev/null; then
+            kill -TERM "$BACKEND_PID" 2>/dev/null || true
+            wait "$BACKEND_PID" 2>/dev/null || true
+        fi
+        if [ -n "$FRONTEND_PID" ] && kill -0 "$FRONTEND_PID" 2>/dev/null; then
+            kill -TERM "$FRONTEND_PID" 2>/dev/null || true
+            wait "$FRONTEND_PID" 2>/dev/null || true
+        fi
+        if [ -n "$ANVIL_PID" ] && kill -0 "$ANVIL_PID" 2>/dev/null; then
+            echo "Stopping Anvil gracefully (SIGINT)..." >&2
+            kill -INT "$ANVIL_PID" 2>/dev/null || true
+            wait "$ANVIL_PID" 2>/dev/null || true
+        fi
+    fi
+}
+trap stop_anvil_on_failure EXIT
+
 ANVIL_RPC="http://127.0.0.1:8545"
 ANVIL_READY=false
 for i in $(seq 1 30); do
@@ -115,7 +135,8 @@ done
 
 if [ "$ANVIL_READY" != "true" ]; then
     echo "ERROR: Anvil failed to answer RPC on $ANVIL_RPC within 30 seconds." >&2
-    kill -TERM "$ANVIL_PID" 2>/dev/null || true
+    kill -INT "$ANVIL_PID" 2>/dev/null || true
+    wait "$ANVIL_PID" 2>/dev/null || true
     exit 1
 fi
 
@@ -202,19 +223,22 @@ if ! check_contracts; then
         bash "$REPO_ROOT/setup_hyqub_env.sh" || {
             echo "ERROR: Contract deployment script failed." >&2
             echo "To deploy manually, start Anvil and run: ./setup_hyqub_env.sh" >&2
-            kill -TERM "$ANVIL_PID" 2>/dev/null || true
+            kill -INT "$ANVIL_PID" 2>/dev/null || true
+            wait "$ANVIL_PID" 2>/dev/null || true
             exit 1
         }
     else
         echo "ERROR: setup_hyqub_env.sh not found." >&2
         echo "Cannot safely deploy automatically. Please run ./setup_hyqub_env.sh." >&2
-        kill -TERM "$ANVIL_PID" 2>/dev/null || true
+        kill -INT "$ANVIL_PID" 2>/dev/null || true
+        wait "$ANVIL_PID" 2>/dev/null || true
         exit 1
     fi
 
     if ! check_contracts; then
         echo "ERROR: Contracts still do not have bytecode on chain after deployment." >&2
-        kill -TERM "$ANVIL_PID" 2>/dev/null || true
+        kill -INT "$ANVIL_PID" 2>/dev/null || true
+        wait "$ANVIL_PID" 2>/dev/null || true
         exit 1
     fi
 fi
@@ -222,7 +246,8 @@ fi
 if ! confirm_env_match; then
     echo "ERROR: Deployed contract addresses do not match backend/.env." >&2
     echo "Run ./setup_hyqub_env.sh to synchronize deployment addresses." >&2
-    kill -TERM "$ANVIL_PID" 2>/dev/null || true
+    kill -INT "$ANVIL_PID" 2>/dev/null || true
+    wait "$ANVIL_PID" 2>/dev/null || true
     exit 1
 fi
 
@@ -242,21 +267,25 @@ echo "=== [5/6] Starting Backend ==="
 BACKEND_PID=$!
 
 BACKEND_READY=false
-for i in $(seq 1 30); do
+for i in $(seq 1 90); do
     STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/health 2>/dev/null || true)
     if [ "$STATUS" = "200" ]; then
         BACKEND_READY=true
         break
     fi
+    if [ $((i % 10)) -eq 0 ]; then
+        echo "still waiting for backend (${i}s)..."
+    fi
     sleep 1
 done
 
 if [ "$BACKEND_READY" != "true" ]; then
-    echo "ERROR: Backend failed to respond with HTTP 200 on /health within 30 seconds." >&2
+    echo "ERROR: Backend failed to respond with HTTP 200 on /health within 90 seconds." >&2
     echo "Last 20 lines of logs/backend.log:" >&2
     tail -n 20 "$REPO_ROOT/logs/backend.log" >&2
     kill -TERM "$BACKEND_PID" 2>/dev/null || true
-    kill -TERM "$ANVIL_PID" 2>/dev/null || true
+    kill -INT "$ANVIL_PID" 2>/dev/null || true
+    wait "$ANVIL_PID" 2>/dev/null || true
     exit 1
 fi
 
@@ -280,6 +309,9 @@ ANVIL_PID=$ANVIL_PID
 BACKEND_PID=$BACKEND_PID
 FRONTEND_PID=$FRONTEND_PID
 EOF
+
+# Startup succeeded; disarm the failure trap
+trap - EXIT
 
 # -----------------------------------------------------------------------------
 # 7. SUMMARY
@@ -318,7 +350,7 @@ cleanup() {
 
     if [ -n "$ANVIL_PID" ] && kill -0 "$ANVIL_PID" 2>/dev/null; then
         echo "Stopping Anvil (PID $ANVIL_PID)..."
-        kill -TERM "$ANVIL_PID" 2>/dev/null || true
+        kill -INT "$ANVIL_PID" 2>/dev/null || true
         wait "$ANVIL_PID" 2>/dev/null || true
     fi
 

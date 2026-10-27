@@ -66,7 +66,7 @@ body {
   .app { max-width: 440px; }
   .dashboard-grid > * { grid-column: span 12 !important; }
 }
-#screen-auth, #screen-pay, #screen-receive, #screen-status {
+#screen-pay, #screen-receive, #screen-status {
   max-width: 440px;
   margin: 0 auto;
 }
@@ -253,7 +253,102 @@ input:-webkit-autofill:active {
 
 /* Toast */
 #toast { position: fixed; left: 50%; bottom: 80px; transform: translateX(-50%); background: var(--s2); border: 1px solid var(--line); padding: 11px 18px; border-radius: 14px; opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 120; font-size: 13px; font-weight: 600; box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
-#toast.on { opacity: 1; }
+/* Network Banner */
+.network-banner {
+  background: rgba(255, 122, 122, 0.16);
+  border: 1px solid var(--bad);
+  color: var(--bad);
+  padding: 10px 14px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: slideDown .2s ease;
+}
+@keyframes slideDown { from { transform: translateY(-8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+/* Inline Validation Messages */
+.inline-val { font-size: 12px; min-height: 18px; margin: 4px 0 6px; }
+.inline-val.err { color: var(--bad); }
+.inline-val.ok { color: var(--ok); }
+.inline-val.dim { color: var(--dim); }
+
+/* Review Summary Card */
+.review-card {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin: 12px 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.review-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+.review-party {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.review-party .av {
+  width: 24px;
+  height: 24px;
+  font-size: 10px;
+}
+
+/* Verification list in tx sheet */
+.sheet-verify-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-top: 6px;
+}
+.sheet-verify-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.sheet-verify-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  flex: none;
+}
+.sheet-verify-dot.done {
+  background: rgba(79, 214, 156, 0.2);
+  color: var(--ok);
+}
+.sheet-verify-dot.pending {
+  background: rgba(255, 209, 102, 0.2);
+  color: var(--warn);
+  animation: pulsePending 1.5s infinite;
+}
+.sheet-verify-dot.fail {
+  background: rgba(255, 122, 122, 0.2);
+  color: var(--bad);
+}
+.sheet-verify-dot.idle {
+  background: var(--s2);
+  color: var(--dim);
+}
 
 @media(prefers-reduced-motion: reduce) {
   *, ::before, ::after { animation: none !important; transition: none !important; }
@@ -264,10 +359,661 @@ input:-webkit-autofill:active {
   .header-user-name { max-width: 60px; }
   .acts { flex-direction: column; }
 }
+
+/* ==========================================================================
+   HYQUB Fitted Desktop Layout & Custom Card Styling
+   ========================================================================== */
+
+body.auth-screen-active,
+body:has(#screen-auth:not([hidden])) {
+  margin: 0;
+  padding: 0;
+  background: radial-gradient(ellipse 90% 70% at 50% 20%, #151d3b 0%, #0c1124 55%, #060810 100%) fixed;
+  color: var(--tx);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+body.auth-screen-active .app,
+body:has(#screen-auth:not([hidden])) .app {
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+body.auth-screen-active .app-header,
+body:has(#screen-auth:not([hidden])) .app-header {
+  display: none !important;
+}
+body.auth-screen-active .network-banner,
+body:has(#screen-auth:not([hidden])) .network-banner {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  max-width: 90%;
+  width: 480px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* ── HYQUB Auth Screen: Centered Split Card Experience ── */
+#screen-auth.auth-split-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 100vh;
+  height: 100vh;
+  margin: 0;
+  max-width: 100%;
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px 20px;
+  box-sizing: border-box;
+  background: radial-gradient(circle at 20% 30%, #151d3b 0%, #0c1124 55%, #060810 100%);
+}
+
+/* Background Ambient Glows */
+.auth-ambient-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 1;
+}
+.auth-glow-1 {
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(circle, rgba(108, 142, 245, 0.18) 0%, transparent 70%);
+  top: 10%;
+  left: 15%;
+}
+.auth-glow-2 {
+  width: 360px;
+  height: 360px;
+  background: radial-gradient(circle, rgba(61, 214, 140, 0.12) 0%, transparent 70%);
+  bottom: 10%;
+  right: 15%;
+}
+
+/* Centered Card (>= 900px) */
+#auth-card.auth-card {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  max-width: 960px;
+  min-height: 560px;
+  border-radius: 24px;
+  background: #111627;
+  border: 1px solid rgba(139, 156, 255, 0.15);
+  box-shadow: 0 24px 64px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+  position: relative;
+  z-index: 2;
+  margin: auto;
+  animation: authCardEntrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+@keyframes authCardEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Red tint & error shake state */
+#auth-card.auth-card.has-error {
+  border-color: rgba(255, 122, 122, 0.45);
+  box-shadow: 0 24px 64px -12px rgba(255, 80, 80, 0.25), 0 0 0 1px rgba(255, 122, 122, 0.3);
+}
+
+/* ── LEFT PANEL (about 55%): Illustration & Trust Experience ── */
+.auth-card-illustration {
+  flex: 0 0 55%;
+  width: 55%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 32px 34px 28px;
+  box-sizing: border-box;
+  background: linear-gradient(155deg, #141c3a 0%, #0d1326 60%, #070914 100%);
+  overflow: hidden;
+  color: #eef0f8;
+}
+
+/* Organic curved wave right edge */
+.auth-wave-edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -1px;
+  width: 32px;
+  pointer-events: none;
+  z-index: 4;
+}
+.auth-wave-edge svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Illustration Header */
+.auth-ill-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  z-index: 3;
+}
+.auth-ill-brand {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+.auth-pill-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 3px 9px;
+  border-radius: 20px;
+  background: rgba(139, 156, 255, 0.16);
+  color: #c4ceff;
+  border: 1px solid rgba(139, 156, 255, 0.28);
+  text-transform: uppercase;
+}
+
+/* SVG Art Container */
+.auth-art-box {
+  width: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 6px 0;
+  z-index: 3;
+}
+.auth-art-svg {
+  width: 100%;
+  max-width: 380px;
+  height: auto;
+  display: block;
+}
+
+/* Interactive & Floating Animations */
+.art-shield-group {
+  animation: shieldFloat 7s ease-in-out infinite;
+  transform-origin: center;
+  transition: transform 0.15s ease-out;
+}
+@keyframes shieldFloat {
+  0%, 100% { transform: translate(255px, 145px) translateY(0); }
+  50% { transform: translate(255px, 145px) translateY(-6px); }
+}
+
+.art-floating-coin {
+  animation: coinFloat 6s ease-in-out infinite;
+}
+@keyframes coinFloat {
+  0%, 100% { transform: translate(370px, 75px) translateY(0); }
+  50% { transform: translate(370px, 75px) translateY(-5px); }
+}
+
+.art-verifier-node.node-1 {
+  animation: nodePulse1 4s ease-in-out infinite alternate;
+}
+.art-verifier-node.node-2 {
+  animation: nodePulse2 4s ease-in-out infinite alternate;
+}
+@keyframes nodePulse1 {
+  0% { transform: translate(0, 0); opacity: 0.85; }
+  100% { transform: translate(-2px, -3px); opacity: 1; }
+}
+@keyframes nodePulse2 {
+  0% { transform: translate(0, 0); opacity: 0.85; }
+  100% { transform: translate(2px, 3px); opacity: 1; }
+}
+
+/* Headline & Trust Points */
+.auth-ill-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  z-index: 3;
+}
+.auth-headline {
+  font-size: 21px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin: 0;
+  color: #ffffff;
+  background: linear-gradient(135deg, #ffffff 40%, #b9caff 80%, #7ee7be 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Three Trust Points */
+.auth-trust-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.auth-trust-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  background: rgba(22, 28, 48, 0.6);
+  border: 1px solid rgba(139, 156, 255, 0.12);
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #d8e1ff;
+  backdrop-filter: blur(6px);
+  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+.auth-trust-item:hover {
+  background: rgba(26, 34, 60, 0.8);
+  border-color: rgba(139, 156, 255, 0.28);
+  transform: translateX(3px);
+}
+.auth-trust-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  background: rgba(139, 156, 255, 0.15);
+  border: 1px solid rgba(139, 156, 255, 0.25);
+  color: #8ba8ff;
+}
+.auth-trust-item:nth-child(2) .auth-trust-icon {
+  background: rgba(79, 214, 156, 0.15);
+  border-color: rgba(79, 214, 156, 0.25);
+  color: #4fd69c;
+}
+.auth-trust-item:nth-child(3) .auth-trust-icon {
+  background: rgba(255, 209, 102, 0.15);
+  border-color: rgba(255, 209, 102, 0.25);
+  color: #ffd166;
+}
+
+/* Tiny Line Footer */
+.auth-ill-footer {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: #7b8eaf;
+  position: relative;
+  z-index: 3;
+  margin-top: 2px;
+}
+.auth-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4fd69c;
+  box-shadow: 0 0 7px #4fd69c;
+  animation: pulseStatus 2s infinite;
+}
+@keyframes pulseStatus {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.85); }
+}
+
+/* ── RIGHT PANEL (about 45%): Form & Interactivity ── */
+.auth-card-form {
+  flex: 0 0 45%;
+  width: 45%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 36px 34px;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 5;
+  background: #111627;
+}
+
+/* Floating Theme Toggle in Form */
+.auth-theme-toggle {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #c4ceff;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.auth-theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+/* Form Branding & Headers */
+.auth-form-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.auth-form-brand .auth-brand-name {
+  font-size: 17px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.auth-form-header {
+  margin-bottom: 20px;
+}
+.auth-title {
+  font-size: 24px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  margin: 0 0 4px;
+  line-height: 1.2;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.auth-subtitle {
+  font-size: 13px;
+  color: #8c96b5;
+  margin: 0;
+  line-height: 1.4;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+/* Floating / Animated Labels with Field Icons */
+.auth-field-group {
+  position: relative;
+  margin-bottom: 16px;
+}
+.auth-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.auth-field-icon {
+  position: absolute;
+  left: 13px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 17px;
+  height: 17px;
+  color: #64718f;
+  pointer-events: none;
+  transition: color 0.2s ease;
+  z-index: 2;
+}
+.auth-field {
+  width: 100%;
+  background: rgba(14, 19, 36, 0.7);
+  border: 1.5px solid rgba(139, 156, 255, 0.18);
+  border-radius: 12px;
+  padding: 18px 14px 6px 40px;
+  color: #ffffff;
+  font-size: 14.5px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+.auth-field.with-toggle {
+  padding-right: 44px;
+}
+.auth-field:focus {
+  border-color: #8b9cff;
+  box-shadow: 0 0 0 3px rgba(139, 156, 255, 0.22);
+  background: rgba(18, 25, 48, 0.95);
+}
+.auth-input-wrap:focus-within .auth-field-icon {
+  color: #8b9cff;
+}
+
+/* Floating Label Animation */
+.auth-label {
+  position: absolute;
+  left: 40px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  font-weight: 500;
+  color: #7b88a8;
+  pointer-events: none;
+  transition: all 0.2s ease;
+  transform-origin: left top;
+  z-index: 2;
+}
+.auth-field:focus ~ .auth-label,
+.auth-field:not(:placeholder-shown) ~ .auth-label {
+  top: 8px;
+  transform: translateY(0) scale(0.8);
+  color: #8b9cff;
+  font-weight: 600;
+}
+
+/* Password Eye Toggle */
+.btn-toggle-pw {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  color: #64718f;
+  cursor: pointer;
+  transition: color 0.15s ease;
+  padding: 0;
+  z-index: 2;
+}
+.btn-toggle-pw:hover {
+  color: #eaf0fe;
+}
+
+/* Caps Lock Warning */
+.caps-warning {
+  font-size: 11px;
+  font-weight: 600;
+  color: #ffd166;
+  margin-top: 4px;
+  padding-left: 2px;
+}
+
+/* Password Strength Hint Bar (Signup mode only, informational) */
+.pw-strength {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.pw-strength-track {
+  width: 100%;
+  height: 3.5px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.pw-strength-bar {
+  height: 100%;
+  width: 0%;
+  border-radius: 3px;
+  transition: width 0.25s ease, background-color 0.25s ease;
+}
+.pw-strength-label {
+  font-size: 10.5px;
+  color: #8c96b5;
+}
+
+/* Error Box */
+.auth-error-box {
+  color: var(--bad);
+  font-size: 12.5px;
+  min-height: 18px;
+  margin: 4px 0 6px;
+  line-height: 1.35;
+}
+#auth-form:has(#auth-error:not(:empty)) .auth-field {
+  border-color: rgba(255, 122, 122, 0.45);
+}
+
+/* Submit Button with Loading Spinner */
+.auth-submit-btn {
+  background: #7388ff;
+  color: #0b0e1c;
+  font-weight: 700;
+  font-size: 14.5px;
+  border-radius: 12px;
+  padding: 13px;
+  width: 100%;
+  border: none;
+  cursor: pointer;
+  margin-top: 6px;
+  box-shadow: 0 4px 16px rgba(115, 136, 255, 0.28);
+  transition: transform 0.12s ease, box-shadow 0.15s ease, background 0.15s ease, opacity 0.25s ease;
+}
+.auth-submit-btn:hover:not(:disabled) {
+  background: #8598ff;
+  box-shadow: 0 6px 20px rgba(115, 136, 255, 0.4);
+  transform: translateY(-1px);
+}
+.auth-submit-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.auth-submit-btn:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+.auth-submit-btn:disabled::before {
+  content: "";
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  margin-right: 8px;
+  border: 2px solid rgba(11, 14, 28, 0.35);
+  border-top-color: #0b0e1c;
+  border-radius: 50%;
+  animation: authSpin 0.75s linear infinite;
+  vertical-align: -1px;
+}
+@keyframes authSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* Mode Switch Area */
+.auth-switch-area {
+  margin-top: 14px;
+  text-align: center;
+  font-size: 13px;
+  color: #8c96b5;
+}
+.auth-switch-area .link-btn {
+  background: none;
+  border: none;
+  color: #8b9cff;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0 4px;
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.15s ease;
+}
+.auth-switch-area .link-btn:hover {
+  color: #ffffff;
+}
+
+.auth-hint-note {
+  font-size: 11.5px;
+  margin: 10px 0 0;
+  text-align: center;
+  color: #8c96b5;
+}
+
+/* ── Mobile Layout (< 900px) ── */
+@media (max-width: 899px) {
+  #screen-auth.auth-split-screen {
+    height: auto;
+    min-height: 100vh;
+    padding: 24px 16px 40px;
+    align-items: flex-start;
+  }
+  #auth-card.auth-card {
+    flex-direction: column;
+    max-width: 440px;
+    min-height: auto;
+    border-radius: 20px;
+  }
+  .auth-card-illustration {
+    display: none !important;
+  }
+  .auth-card-form {
+    flex: 1 1 100%;
+    width: 100%;
+    padding: 32px 22px 28px;
+  }
+  .auth-wave-edge {
+    display: none !important;
+  }
+}
+
+/* ── Extreme Mobile (360px) ── */
+@media (max-width: 360px) {
+  #screen-auth.auth-split-screen {
+    padding: 16px 10px 32px;
+  }
+  .auth-card-form {
+    padding: 24px 16px 20px;
+  }
+  .auth-title {
+    font-size: 21px;
+  }
+}
+
+/* ── Reduced Motion ── */
+@media (prefers-reduced-motion: reduce) {
+  #auth-card.auth-card,
+  .art-shield-group,
+  .art-floating-coin,
+  .art-verifier-node,
+  .auth-status-dot,
+  .auth-submit-btn:disabled::before {
+    animation: none !important;
+    transition: none !important;
+  }
+}
 </style>
 </head>
 <body>
 <div class="app">
+<div id="network-banner" class="network-banner" hidden role="alert">
+  <span style="font-size:15px">⚠</span>
+  <span id="network-banner-text">Cannot reach the server. Check that the backend is running.</span>
+</div>
 
 <header class="app-header">
   <div class="header-brand">
@@ -283,26 +1029,265 @@ input:-webkit-autofill:active {
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       Log out
     </button>
-    <button id="btn-theme" class="btn icon-btn" type="button" aria-label="Toggle theme">☼</button>
-  </div>
-</header>
+    <button id="btn-theme" class="btn icon-btn" type="button" aria-lab<section id="screen-auth" class="auth-split-screen">
+  <!-- Subtle Ambient Glows -->
+  <div class="auth-ambient-glow auth-glow-1" aria-hidden="true"></div>
+  <div class="auth-ambient-glow auth-glow-2" aria-hidden="true"></div>
 
-<section id="screen-auth">
-  <div style="text-align:center;margin:28px 0 8px">
-    <h1 style="font-size:32px">HYQUB</h1>
-    <div class="dim">Payments secured with post-quantum signatures</div>
-  </div>
-  <div id="auth-card" class="card">
-    <form id="auth-form" autocomplete="off">
-      <label for="auth-username">Username</label><input id="auth-username" autocomplete="username" required>
-      <label for="auth-password">Password</label><input id="auth-password" type="password" autocomplete="current-password" required>
-      <div id="auth-error" class="err" role="alert" style="margin-top:10px"></div>
-      <button id="auth-submit" class="btn pri full" type="submit">Log in</button>
-      <div id="auth-switch" class="dim" style="text-align:center;margin-top:14px;font-size:13px">
-        <span id="auth-switch-text">Don't have an account? </span><button id="auth-switch-btn" class="link-btn" type="button">Sign up</button>
+  <!-- Large Centered Rounded Card (>= 900px desktop split layout) -->
+  <div id="auth-card" class="auth-card">
+    <!-- LEFT (about 55%): Illustration & Trust panel with organic curved wave right edge -->
+    <aside class="auth-card-illustration">
+      <!-- Organic curved "wave" right edge -->
+      <div class="auth-wave-edge" aria-hidden="true">
+        <svg viewBox="0 0 32 560" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M0,0 C24,140 -8,280 20,420 C28,480 14,530 0,560 L32,560 L32,0 Z" fill="#111627" />
+        </svg>
       </div>
-    </form>
-    <p id="auth-hint" class="dim" hidden>Creating your secure wallet. This can take up to 20 seconds.</p>
+
+      <!-- Top Branding -->
+      <div class="auth-ill-header">
+        <div class="logo-badge">HQ</div>
+        <span class="auth-ill-brand">HYQUB</span>
+        <span class="auth-pill-tag">RESEARCH PROTOTYPE</span>
+      </div>
+
+      <!-- Center: Original Inline SVG Artwork (No people, no text) -->
+      <div class="auth-art-box">
+        <svg class="auth-art-svg" viewBox="0 0 460 300" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Cryptographic wallet visualization">
+          <defs>
+            <radialGradient id="art-bg-glow" cx="45%" cy="45%" r="65%">
+              <stop offset="0%" stop-color="#1f2d59" stop-opacity="0.8" />
+              <stop offset="60%" stop-color="#101730" stop-opacity="0.6" />
+              <stop offset="100%" stop-color="#0a0e1f" stop-opacity="0" />
+            </radialGradient>
+            <linearGradient id="art-lattice-stroke" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#8ba8ff" stop-opacity="0.8" />
+              <stop offset="50%" stop-color="#4e71ea" stop-opacity="0.4" />
+              <stop offset="100%" stop-color="#3dd68c" stop-opacity="0.7" />
+            </linearGradient>
+            <filter id="art-glow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="8" result="blur" />
+              <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            </filter>
+            <filter id="node-glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="4" result="blur" />
+              <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            </filter>
+            <linearGradient id="art-dia-top-l" x1="210" y1="65" x2="255" y2="155" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#dce5ff" />
+              <stop offset="60%" stop-color="#7b9cff" />
+              <stop offset="100%" stop-color="#4667de" />
+            </linearGradient>
+            <linearGradient id="art-dia-top-r" x1="300" y1="65" x2="255" y2="155" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#8faeff" />
+              <stop offset="60%" stop-color="#4a6ce3" />
+              <stop offset="100%" stop-color="#233575" />
+            </linearGradient>
+            <linearGradient id="art-dia-bot-l" x1="210" y1="135" x2="255" y2="215" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#5be2a7" />
+              <stop offset="100%" stop-color="#1b8552" />
+            </linearGradient>
+            <linearGradient id="art-dia-bot-r" x1="300" y1="135" x2="255" y2="215" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#34b87e" />
+              <stop offset="100%" stop-color="#125734" />
+            </linearGradient>
+            <linearGradient id="phone-body" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#1c2545" />
+              <stop offset="100%" stop-color="#0e1324" />
+            </linearGradient>
+            <linearGradient id="phone-screen" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#131a33" />
+              <stop offset="100%" stop-color="#0b0e1b" />
+            </linearGradient>
+            <radialGradient id="coin-gold" cx="40%" cy="35%" r="65%">
+              <stop offset="0%" stop-color="#ffe48f" />
+              <stop offset="50%" stop-color="#e0b134" />
+              <stop offset="100%" stop-color="#8f6913" />
+            </radialGradient>
+          </defs>
+
+          <!-- Layered Navy Background Shapes -->
+          <rect x="10" y="10" width="440" height="280" rx="20" fill="url(#art-bg-glow)" />
+          <path d="M40 180 Q140 110 260 170 T420 140" stroke="rgba(139,156,255,0.12)" stroke-width="1.5" fill="none" />
+          <path d="M20 220 Q160 150 280 230 T440 180" stroke="rgba(61,214,140,0.12)" stroke-width="1.5" fill="none" />
+
+          <!-- Background Cyber Circuit Grid Lines -->
+          <g opacity="0.22">
+            <line x1="70" y1="40" x2="70" y2="260" stroke="#4f6edb" stroke-width="1" stroke-dasharray="3 4" />
+            <line x1="190" y1="30" x2="190" y2="270" stroke="#4f6edb" stroke-width="1" stroke-dasharray="3 4" />
+            <line x1="330" y1="40" x2="330" y2="260" stroke="#4f6edb" stroke-width="1" stroke-dasharray="3 4" />
+            <line x1="40" y1="90" x2="420" y2="90" stroke="#4f6edb" stroke-width="1" stroke-dasharray="3 4" />
+            <line x1="40" y1="210" x2="420" y2="210" stroke="#4f6edb" stroke-width="1" stroke-dasharray="3 4" />
+          </g>
+
+          <!-- Left: Phone with Green Check Mark -->
+          <g class="art-phone-layer" transform="translate(60, 70)">
+            <rect x="4" y="6" width="100" height="160" rx="18" fill="rgba(0,0,0,0.4)" filter="url(#art-glow)" />
+            <rect x="0" y="0" width="100" height="160" rx="18" fill="url(#phone-body)" stroke="#2b3964" stroke-width="2" />
+            <rect x="36" y="8" width="28" height="4" rx="2" fill="#3b4d82" />
+            <rect x="8" y="20" width="84" height="120" rx="10" fill="url(#phone-screen)" stroke="rgba(139,156,255,0.2)" stroke-width="1" />
+            <rect x="16" y="32" width="68" height="40" rx="6" fill="rgba(139,156,255,0.1)" stroke="rgba(139,156,255,0.2)" stroke-width="1" />
+            <line x1="24" y1="44" x2="52" y2="44" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-linecap="round" />
+            <line x1="24" y1="54" x2="40" y2="54" stroke="rgba(139,156,255,0.4)" stroke-width="1.5" stroke-linecap="round" />
+            <!-- Green Check Mark -->
+            <circle cx="50" cy="104" r="20" fill="rgba(61,214,140,0.15)" stroke="#3dd68c" stroke-width="2" filter="url(#art-glow)" />
+            <circle cx="50" cy="104" r="16" fill="#133626" />
+            <path d="M43 104 L48 109 L58 98" stroke="#3dd68c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+          </g>
+
+          <!-- Connection Links -->
+          <path d="M162 135 C185 125, 205 130, 225 140" stroke="url(#art-lattice-stroke)" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.7" />
+
+          <!-- Orbiting Verifier Node 1 -->
+          <g class="art-verifier-node node-1">
+            <line x1="195" y1="55" x2="255" y2="125" stroke="rgba(139,156,255,0.4)" stroke-width="1" stroke-dasharray="3 3" />
+            <circle cx="195" cy="55" r="14" fill="rgba(139,156,255,0.12)" stroke="#8ba8ff" stroke-width="1.5" filter="url(#node-glow)" />
+            <circle cx="195" cy="55" r="5" fill="#c4ceff" />
+            <circle cx="195" cy="55" r="9" stroke="rgba(139,156,255,0.5)" stroke-width="1" stroke-dasharray="2 3" />
+          </g>
+
+          <!-- Orbiting Verifier Node 2 -->
+          <g class="art-verifier-node node-2">
+            <line x1="365" y1="215" x2="255" y2="165" stroke="rgba(61,214,140,0.4)" stroke-width="1" stroke-dasharray="3 3" />
+            <circle cx="365" cy="215" r="14" fill="rgba(61,214,140,0.12)" stroke="#3dd68c" stroke-width="1.5" filter="url(#node-glow)" />
+            <circle cx="365" cy="215" r="5" fill="#a2f4cf" />
+            <circle cx="365" cy="215" r="9" stroke="rgba(61,214,140,0.5)" stroke-width="1" stroke-dasharray="2 3" />
+          </g>
+
+          <!-- Center-Right: Glowing Crystal-Lattice Shield -->
+          <g class="art-shield-group" id="art-interactive-shield" transform="translate(255, 145)">
+            <ellipse cx="0" cy="0" rx="82" ry="34" stroke="url(#art-lattice-stroke)" stroke-width="1.2" stroke-dasharray="4 5" transform="rotate(-22)" opacity="0.65" />
+            <ellipse cx="0" cy="0" rx="82" ry="34" stroke="url(#art-lattice-stroke)" stroke-width="1.2" stroke-dasharray="4 5" transform="rotate(32)" opacity="0.45" />
+            <circle cx="0" cy="0" r="56" fill="url(#art-bg-glow)" filter="url(#art-glow)" opacity="0.8" />
+            <path d="M0 -62 C32 -62, 54 -48, 54 -14 C54 30, 22 56, 0 68 C-22 56, -54 30, -54 -14 C-54 -48, -32 -62, 0 -62 Z"
+                  fill="#101730" stroke="url(#art-lattice-stroke)" stroke-width="1.8" filter="url(#art-glow)" />
+            <g class="art-crystal-facets">
+              <path d="M0 -42 L-32 5 L0 25 Z" fill="url(#art-dia-top-l)" opacity="0.9" />
+              <path d="M0 -42 L32 5 L0 25 Z" fill="url(#art-dia-top-r)" opacity="0.85" />
+              <path d="M0 -42 L0 25" stroke="rgba(255,255,255,0.8)" stroke-width="1.4" stroke-linecap="round" />
+              <path d="M0 35 L-32 15 L0 52 Z" fill="url(#art-dia-bot-l)" opacity="0.9" />
+              <path d="M0 35 L32 15 L0 52 Z" fill="url(#art-dia-bot-r)" opacity="0.85" />
+              <line x1="-32" y1="5" x2="32" y2="5" stroke="rgba(255,255,255,0.3)" stroke-width="1" />
+              <line x1="-32" y1="15" x2="32" y2="15" stroke="rgba(61,214,140,0.4)" stroke-width="1" />
+              <circle cx="0" cy="20" r="2.5" fill="#ffffff" filter="url(#node-glow)" />
+            </g>
+          </g>
+
+          <!-- Top-Right: Floating Coin -->
+          <g class="art-floating-coin" transform="translate(370, 75)">
+            <circle cx="0" cy="0" r="24" fill="rgba(0,0,0,0.35)" filter="url(#art-glow)" />
+            <circle cx="0" cy="0" r="22" fill="url(#coin-gold)" stroke="#fff2b3" stroke-width="1.5" />
+            <circle cx="0" cy="0" r="18" fill="#1b213b" stroke="url(#coin-gold)" stroke-width="1.2" />
+            <path d="M0 -10 L7 0 L0 10 L-7 0 Z" fill="url(#coin-gold)" opacity="0.95" />
+          </g>
+        </svg>
+      </div>
+
+      <!-- Headline & Trust Points -->
+      <div class="auth-ill-copy">
+        <h1 class="auth-headline">Post-quantum payments</h1>
+        <div class="auth-trust-list">
+          <div class="auth-trust-item">
+            <span class="auth-trust-icon" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </span>
+            <span>Signed with ML-DSA-65</span>
+          </div>
+          <div class="auth-trust-item">
+            <span class="auth-trust-icon" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </span>
+            <span>Checked by 2 independent verifiers</span>
+          </div>
+          <div class="auth-trust-item">
+            <span class="auth-trust-icon" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+            </span>
+            <span>Executed by a smart contract wallet</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tiny Line Footer -->
+      <div class="auth-ill-footer">
+        <span class="auth-status-dot" aria-hidden="true"></span>
+        <span>Prototype on a local test chain</span>
+      </div>
+    </aside>
+
+    <!-- RIGHT (about 45%): Form, Vertically Centered -->
+    <main class="auth-card-form">
+      <!-- Theme toggle -->
+      <button id="btn-theme-auth" class="btn icon-btn auth-theme-toggle" type="button" aria-label="Toggle theme">☼</button>
+
+      <!-- Logo & Headers -->
+      <div class="auth-form-brand">
+        <div class="logo-badge">HQ</div>
+        <span class="auth-brand-name">HYQUB</span>
+      </div>
+
+      <div class="auth-form-header">
+        <h2 id="auth-title" class="auth-title">Welcome back</h2>
+        <p id="auth-subtitle" class="auth-subtitle">Sign in to continue to your wallet</p>
+      </div>
+
+      <form id="auth-form" autocomplete="off" class="auth-form-body">
+        <!-- Username Field with Icon and Floating Label -->
+        <div class="auth-field-group">
+          <div class="auth-input-wrap">
+            <svg class="auth-field-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+            <input id="auth-username" class="auth-field" autocomplete="username" placeholder=" " required>
+            <label for="auth-username" class="auth-label">Username</label>
+          </div>
+        </div>
+
+        <!-- Password Field with Icon, Floating Label, Eye Toggle & Caps Warning -->
+        <div class="auth-field-group">
+          <div class="auth-input-wrap">
+            <svg class="auth-field-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <input id="auth-password" class="auth-field with-toggle" type="password" autocomplete="current-password" placeholder=" " required>
+            <label for="auth-password" class="auth-label">Password</label>
+            <button id="btn-toggle-pw" class="btn-toggle-pw" type="button" aria-label="Show password" aria-pressed="false">
+              <svg class="eye-show" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+              <svg class="eye-hide" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden>
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+            </button>
+          </div>
+          <!-- Caps Lock warning -->
+          <div id="caps-warning" class="caps-warning" hidden aria-live="polite">⇪ Caps Lock is on</div>
+          <!-- Signup mode: password strength hint bar (informational) -->
+          <div id="pw-strength" class="pw-strength" hidden>
+            <div class="pw-strength-track">
+              <div id="pw-strength-bar" class="pw-strength-bar"></div>
+            </div>
+            <span id="pw-strength-label" class="pw-strength-label">Password strength</span>
+          </div>
+        </div>
+
+        <div id="auth-error" class="err auth-error-box" role="alert"></div>
+
+        <button id="auth-submit" class="btn pri full auth-submit-btn" type="submit">Log in</button>
+
+        <div id="auth-switch" class="auth-switch-area">
+          <span id="auth-switch-text">Don't have an account? </span>
+          <button id="auth-switch-btn" class="link-btn" type="button">Sign up</button>
+        </div>
+      </form>
+
+      <p id="auth-hint" class="dim auth-hint-note" hidden>Creating your secure wallet. This can take up to 20 seconds.</p>
+    </main>
   </div>
 </section>
 
@@ -399,6 +1384,7 @@ input:-webkit-autofill:active {
   <div id="pay-step-1" class="card" style="margin-top:6px">
     <label for="pay-search" style="margin-top:0">Who are you sending to?</label>
     <input id="pay-search" placeholder="Search by name" autocomplete="off">
+    <div id="pay-recipient-val" class="inline-val dim" role="status"></div>
     <div id="pay-results" style="margin-top:8px"></div>
   </div>
 
@@ -414,11 +1400,11 @@ input:-webkit-autofill:active {
         <span class="amount-unit">ETH</span>
       </div>
     </div>
-    <div class="dim" style="text-align:center">Up to 0.5 per payment and 1 per day.</div>
+    <div id="pay-amount-val" class="inline-val dim" role="status">Up to 0.5 ETH per payment and 1 ETH per day</div>
     <div class="chips">
-      <button type="button" class="chip" data-amt="0.01">0.01</button>
-      <button type="button" class="chip" data-amt="0.05">0.05</button>
-      <button type="button" class="chip" data-amt="0.1">0.1</button>
+      <button type="button" class="chip" data-amt="0.01">0.01 ETH</button>
+      <button type="button" class="chip" data-amt="0.05">0.05 ETH</button>
+      <button type="button" class="chip" data-amt="0.1">0.1 ETH</button>
     </div>
     <div class="keypad">
       <button type="button" class="key" data-k="1">1</button>
@@ -438,14 +1424,36 @@ input:-webkit-autofill:active {
   </div>
 
   <div id="pay-step-3" class="card" style="margin-top:6px" hidden>
-    <div class="sum">
-      <div id="p3-av" class="av lg" style="margin:0 auto 8px"></div>
-      <div class="dim">You are sending</div>
-      <h2 id="p3-amt" style="font-size:32px"></h2>
-      <div class="dim">to <b id="p3-name"></b></div>
+    <div class="sum" style="margin-bottom:12px">
+      <div class="dim">Review payment</div>
+      <h2 id="p3-amt" style="font-size:32px;margin:4px 0"></h2>
+    </div>
+    <div class="review-card">
+      <div class="review-row">
+        <span class="dim">From</span>
+        <div class="review-party">
+          <div id="review-from-av" class="av"></div>
+          <span id="review-from-name" style="font-weight:600"></span>
+        </div>
+      </div>
+      <div class="review-row">
+        <span class="dim">To</span>
+        <div class="review-party">
+          <div id="p3-av" class="av"></div>
+          <span id="p3-name" style="font-weight:600"></span>
+        </div>
+      </div>
+      <div class="review-row">
+        <span class="dim">Amount</span>
+        <span id="review-amount" style="font-weight:700"></span>
+      </div>
+      <div class="review-row">
+        <span class="dim">Network</span>
+        <span id="review-network" class="badge testnet-badge" style="font-size:11px">Local test chain</span>
+      </div>
     </div>
     <label for="pay-password">Confirm with your password</label>
-    <input id="pay-password" type="password" autocomplete="current-password">
+    <input id="pay-password" type="password" autocomplete="current-password" placeholder="Enter password">
     <button id="pay-submit" class="btn pri full" type="button" style="margin-top:16px">Confirm and send</button>
   </div>
 </section>
@@ -467,34 +1475,21 @@ input:-webkit-autofill:active {
     <div id="status-ring" class="ring spin"></div>
     <h2 id="status-title"></h2>
     <p id="status-sub" class="dim"></p>
-    <div id="status-timeline" class="timeline" hidden>
-      <div class="timeline-step" style="--delay: 0ms">
-        <div class="timeline-dot">✓</div>
-        <div class="timeline-text">Signed with ML-DSA</div>
-      </div>
-      <div class="timeline-step" style="--delay: 250ms">
-        <div class="timeline-dot">✓</div>
-        <div class="timeline-text">Verifier A approved</div>
-      </div>
-      <div class="timeline-step" style="--delay: 500ms">
-        <div class="timeline-dot">✓</div>
-        <div class="timeline-text">Verifier B approved</div>
-      </div>
-      <div class="timeline-step" style="--delay: 750ms">
-        <div class="timeline-dot">✓</div>
-        <div class="timeline-text">Approval token issued</div>
-      </div>
-    </div>
+    <div id="status-timeline" class="timeline" hidden></div>
     <div id="status-receipt" class="receipt-card" hidden>
       <div class="row"><span class="dim">To</span><span id="rec-to" style="font-weight:600"></span></div>
       <div class="row" style="margin-top:8px"><span class="dim">Amount</span><span id="rec-amt" style="font-weight:600"></span></div>
-      <div class="row" style="margin-top:8px;flex-direction:column;align-items:flex-start;gap:4px">
-        <span class="dim">Transaction</span>
-        <div id="rec-tx" class="sheet-hash"></div>
+      <div class="row" style="margin-top:8px;flex-direction:column;align-items:flex-start;gap:6px">
+        <span class="dim">Transaction hash</span>
+        <div style="display:flex;width:100%;gap:8px;align-items:center">
+          <div id="rec-tx" class="sheet-hash" style="flex:1"></div>
+          <button id="btn-copy-rec-tx" class="btn" type="button" style="padding:6px 12px;font-size:12px">Copy</button>
+        </div>
       </div>
     </div>
-    <div class="row" style="margin-top:16px;justify-content:center;gap:10px">
+    <div class="row" style="margin-top:16px;justify-content:center;gap:10px;flex-wrap:wrap">
       <button id="status-copy" class="btn" hidden type="button">Copy receipt</button>
+      <button id="status-send-another" class="btn" hidden type="button">Send another</button>
       <button id="status-done" class="btn pri" hidden type="button">Done</button>
       <button id="status-retry" class="btn pri" hidden type="button">Try again</button>
     </div>
@@ -520,6 +1515,10 @@ input:-webkit-autofill:active {
   <div class="sheet-detail-row" style="flex-direction:column;align-items:flex-start;gap:4px">
     <span class="dim">Transaction hash</span>
     <div id="sheet-hash" class="sheet-hash"></div>
+  </div>
+  <div class="sheet-verify-section" style="margin-top:14px;text-align:left">
+    <div class="dim" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">How this payment was verified</div>
+    <div id="sheet-verify-list" class="sheet-verify-list"></div>
   </div>
   <div style="display:flex;gap:10px;margin-top:18px">
     <button id="btn-copy-tx" class="btn pri full" type="button">Copy transaction hash</button>

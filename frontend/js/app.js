@@ -12,8 +12,9 @@ let activeSheetHash = '', chartRendered = false;
 let sessionInterval = null, sessionRemaining = 1800; // 30 minutes
 
 const show = (n) => {
-  SCREENS.forEach((s) => ($(`screen-${s}`).hidden = s !== n));
+  SCREENS.forEach((s) => { const el = $(`screen-${s}`); if (el) el.hidden = s !== n; });
   updateNav(n);
+  document.body.classList.toggle('auth-screen-active', n === 'auth');
   // Show/hide header user controls based on auth state
   const headerUser = $('header-user');
   const btnLogout = $('btn-logout');
@@ -43,6 +44,55 @@ function triggerShake(node) {
   void node.offsetWidth;
   node.classList.add('shake');
   setTimeout(() => node.classList.remove('shake'), 400);
+}
+
+// ---------- Network Reachability Banner ----------
+function showNetworkBanner(msg) {
+  const b = $('network-banner');
+  if (!b) return;
+  const t = $('network-banner-text');
+  if (t && msg) t.textContent = msg;
+  b.hidden = false;
+}
+function hideNetworkBanner() {
+  const b = $('network-banner');
+  if (b) b.hidden = true;
+}
+
+// ---------- Friendly Error Mapping ----------
+function friendlyError(err) {
+  if (!err) return 'Something went wrong. Please try again.';
+  if (err.code === 'NETWORK' || err.status === 0) {
+    return 'Cannot reach the server. Check that the backend is running.';
+  }
+  if (err.code === 'WRONG_PASSWORD') {
+    return 'Wrong password. Nothing was sent.';
+  }
+  if (err.status === 401) {
+    return 'Your session has expired. Please log in again.';
+  }
+  if (err.code === 'INSUFFICIENT_BALANCE') {
+    return 'Your balance is too low for this payment.';
+  }
+  if (err.code === 'LIMIT_EXCEEDED') {
+    return err.message || 'Payment exceeds daily or per-transaction limit.';
+  }
+  if (err.code === 'RATE_LIMITED' || err.status === 429) {
+    return 'Too many attempts. Please wait a minute and try again.';
+  }
+  if (err.code === 'SELF_PAYMENT') {
+    return 'You cannot send money to yourself.';
+  }
+  if (err.code === 'RECIPIENT_NOT_FOUND') {
+    return 'Recipient was not found.';
+  }
+  if (err.code === 'INVALID_AMOUNT') {
+    return err.message || 'Enter a valid positive amount with up to 18 decimals.';
+  }
+  if (err.status === 503) {
+    return 'Payment service is temporarily unavailable. Please try again shortly.';
+  }
+  return err.message || 'Payment failed. Nothing was sent. Please try again.';
 }
 
 // Theme-derived avatar colors using existing CSS variables
@@ -142,16 +192,19 @@ function clearSessionTimer() {
 }
 
 // ---------- Theme Toggle (In-Memory Only) ----------
-$('btn-theme').onclick = () => {
+const toggleTheme = () => {
   currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  const icon = currentTheme === 'light' ? '☾' : '☼';
   if (currentTheme === 'light') {
     document.documentElement.setAttribute('data-theme', 'light');
-    txt('btn-theme', '☾');
   } else {
     document.documentElement.removeAttribute('data-theme');
-    txt('btn-theme', '☼');
   }
+  txt('btn-theme', icon);
+  txt('btn-theme-auth', icon);
 };
+if ($('btn-theme')) $('btn-theme').onclick = toggleTheme;
+if ($('btn-theme-auth')) $('btn-theme-auth').onclick = toggleTheme;
 
 // ---------- Bottom Navigation ----------
 function updateNav(cur) {
@@ -173,15 +226,114 @@ if ($('nav-receive')) $('nav-receive').onclick = () => openReceive();
 // ---------- Auth ----------
 function setMode(s) {
   signup = s;
-  txt('auth-submit', s ? 'Create account' : 'Log in');
+  txt('auth-submit', s ? 'Create your account' : 'Log in');
   txt('auth-error', '');
   const pw = $('auth-password');
   if (pw) pw.autocomplete = s ? 'new-password' : 'current-password';
   txt('auth-switch-text', s ? 'Already have an account? ' : "Don't have an account? ");
   txt('auth-switch-btn', s ? 'Log in' : 'Sign up');
+  txt('auth-title', s ? 'Create your account' : 'Welcome back');
+  txt('auth-subtitle', s ? 'Set up your quantum-resistant wallet' : 'Sign in to continue to your wallet');
+  const pwStr = $('pw-strength');
+  if (pwStr) pwStr.hidden = !s || !pw || !pw.value;
 }
 const authSwitchBtn = $('auth-switch-btn');
 if (authSwitchBtn) authSwitchBtn.onclick = () => setMode(!signup);
+
+// Show/Hide password toggle
+const btnTogglePw = $('btn-toggle-pw');
+if (btnTogglePw) {
+  btnTogglePw.onclick = () => {
+    const pw = $('auth-password');
+    if (!pw) return;
+    const isPw = pw.type === 'password';
+    pw.type = isPw ? 'text' : 'password';
+    btnTogglePw.setAttribute('aria-pressed', isPw ? 'true' : 'false');
+    btnTogglePw.setAttribute('aria-label', isPw ? 'Hide password' : 'Show password');
+    const showIcon = btnTogglePw.querySelector('.eye-show');
+    const hideIcon = btnTogglePw.querySelector('.eye-hide');
+    if (showIcon && hideIcon) {
+      showIcon.hidden = isPw;
+      hideIcon.hidden = !isPw;
+    }
+  };
+}
+
+// Caps Lock Warning & Informational Password Strength
+const authPwInput = $('auth-password');
+const capsWarning = $('caps-warning');
+const pwStrengthBox = $('pw-strength');
+const pwStrengthBar = $('pw-strength-bar');
+const pwStrengthLabel = $('pw-strength-label');
+
+if (authPwInput) {
+  const checkCaps = (e) => {
+    if (capsWarning && e.getModifierState) {
+      capsWarning.hidden = !e.getModifierState('CapsLock');
+    }
+  };
+  authPwInput.addEventListener('keyup', checkCaps);
+  authPwInput.addEventListener('keydown', checkCaps);
+  authPwInput.addEventListener('blur', () => {
+    if (capsWarning) capsWarning.hidden = true;
+  });
+
+  authPwInput.addEventListener('input', () => {
+    if (!pwStrengthBox || !pwStrengthBar) return;
+    if (!signup || !authPwInput.value) {
+      pwStrengthBox.hidden = true;
+      return;
+    }
+    pwStrengthBox.hidden = false;
+    const v = authPwInput.value;
+    let score = 0;
+    if (v.length >= 8) score++;
+    if (v.length >= 12) score++;
+    if (/[0-9]/.test(v)) score++;
+    if (/[^A-Za-z0-9]/.test(v)) score++;
+    const levels = [
+      { w: '25%', c: '#ff7a7a', t: 'Weak' },
+      { w: '50%', c: '#ffd166', t: 'Fair' },
+      { w: '75%', c: '#6677f0', t: 'Good' },
+      { w: '100%', c: '#4fd69c', t: 'Strong' }
+    ];
+    const lvl = levels[Math.max(0, Math.min(score, 3))];
+    pwStrengthBar.style.width = lvl.w;
+    pwStrengthBar.style.backgroundColor = lvl.c;
+    if (pwStrengthLabel) pwStrengthLabel.textContent = `Strength: ${lvl.t}`;
+  });
+}
+
+// Observe error element to toggle error styling
+const authErrBox = $('auth-error');
+const authCardBox = $('auth-card');
+if (authErrBox && authCardBox && window.MutationObserver) {
+  const observer = new MutationObserver(() => {
+    const hasErr = Boolean(authErrBox.textContent && authErrBox.textContent.trim());
+    authCardBox.classList.toggle('has-error', hasErr);
+  });
+  observer.observe(authErrBox, { childList: true, characterData: true, subtree: true });
+}
+
+// Subtle desktop parallax on shield
+const shieldInteractive = document.getElementById('art-interactive-shield');
+if (authCardBox && shieldInteractive) {
+  let pRaf = null;
+  authCardBox.addEventListener('mousemove', (e) => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
+        window.matchMedia('(pointer: coarse)').matches) return;
+    if (pRaf) cancelAnimationFrame(pRaf);
+    pRaf = requestAnimationFrame(() => {
+      const rect = authCardBox.getBoundingClientRect();
+      const nx = (e.clientX - (rect.left + rect.width / 2)) / rect.width;
+      const ny = (e.clientY - (rect.top + rect.height / 2)) / rect.height;
+      shieldInteractive.style.transform = `translate(255px, 145px) translate(${nx * 10}px, ${ny * 8}px)`;
+    });
+  });
+  authCardBox.addEventListener('mouseleave', () => {
+    shieldInteractive.style.transform = 'translate(255px, 145px)';
+  });
+}
 
 $('auth-form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -196,15 +348,15 @@ $('auth-form').addEventListener('submit', async (e) => {
   $('auth-hint').hidden = false;
   try {
     const d = signup ? await api.signup(u, p) : await api.login(u, p);
+    hideNetworkBanner();
     user = { id: d.user_id, name: d.name };
     $('auth-password').value = '';
     startSessionTimer();
     await goHome();
   } catch (err) {
+    if (err.code === 'NETWORK' || err.status === 0) showNetworkBanner();
     triggerShake($('auth-card'));
-    txt('auth-error', err.status === 409 ? 'That username is taken. Try another one.'
-      : err.status === 401 ? 'Wrong username or password.'
-      : err.status === 429 ? 'Too many attempts. Wait a minute and try again.' : err.message);
+    txt('auth-error', err.status === 409 ? 'That username is taken. Try another one.' : friendlyError(err));
   } finally {
     btn.disabled = false;
     $('auth-hint').hidden = true;
@@ -302,6 +454,85 @@ function openSheet(h) {
   txt('sheet-party', name);
   txt('sheet-time', when(h.created_at));
   txt('sheet-hash', activeSheetHash || 'Not available');
+
+  // "How this payment was verified"
+  // Only shows stages with real backend evidence.
+  // Backend records: status ('success'|'failed'|'pending'), tx_hash (string or '').
+  // No verifier counts, no intermediate approval steps — those are not exposed by the backend.
+  const list = $('sheet-verify-list');
+  if (list) {
+    clear(list);
+
+    const isSent = h.direction === 'sent';
+    const txStatus = h.status; // 'success' | 'failed' | 'pending'
+    const hasTxHash = Boolean(h.tx_hash && h.tx_hash.trim());
+
+    // Stage 1: ML-DSA-65 signing — only applies to sent transactions.
+    // The backend always signs before submission; if we have a record at all, signing ran.
+    if (isSent) {
+      let sigState, sigMark, sigLabel;
+      if (txStatus === 'failed' && !hasTxHash) {
+        // Failed before reaching the chain — signing may or may not have completed.
+        sigState = 'pending';
+        sigMark = '?';
+        sigLabel = 'ML-DSA-65 signing — outcome unknown (payment failed before chain)';
+      } else {
+        sigState = 'done';
+        sigMark = '✓';
+        sigLabel = 'Signed with ML-DSA-65 (post-quantum)';
+      }
+      const sigRow = el('div', 'sheet-verify-item');
+      sigRow.append(el('div', `sheet-verify-dot ${sigState}`, sigMark), el('span', '', sigLabel));
+      list.append(sigRow);
+    }
+
+    // Stage 2: Chain submission — based on tx_hash presence.
+    {
+      let chainState, chainMark, chainLabel;
+      if (hasTxHash) {
+        chainState = 'done';
+        chainMark = '✓';
+        chainLabel = 'Submitted to local test chain';
+      } else if (txStatus === 'pending') {
+        chainState = 'pending';
+        chainMark = '⏳';
+        chainLabel = 'Awaiting chain submission';
+      } else if (txStatus === 'failed') {
+        chainState = 'fail';
+        chainMark = '✕';
+        chainLabel = 'Chain submission failed or was not reached';
+      } else {
+        // success but no hash — unusual; record it honestly
+        chainState = 'done';
+        chainMark = '✓';
+        chainLabel = 'Submitted to local test chain';
+      }
+      const chainRow = el('div', 'sheet-verify-item');
+      chainRow.append(el('div', `sheet-verify-dot ${chainState}`, chainMark), el('span', '', chainLabel));
+      list.append(chainRow);
+    }
+
+    // Stage 3: Final outcome — mirrors the stored status.
+    {
+      let outcomeState, outcomeMark, outcomeLabel;
+      if (txStatus === 'success') {
+        outcomeState = 'done';
+        outcomeMark = '✓';
+        outcomeLabel = 'Payment recorded as successful';
+      } else if (txStatus === 'pending') {
+        outcomeState = 'pending';
+        outcomeMark = '⏳';
+        outcomeLabel = 'Outcome pending';
+      } else {
+        outcomeState = 'fail';
+        outcomeMark = '✕';
+        outcomeLabel = 'Payment recorded as failed';
+      }
+      const outcomeRow = el('div', 'sheet-verify-item');
+      outcomeRow.append(el('div', `sheet-verify-dot ${outcomeState}`, outcomeMark), el('span', '', outcomeLabel));
+      list.append(outcomeRow);
+    }
+  }
 
   $('sheet-backdrop').hidden = false;
   $('tx-sheet').hidden = false;
@@ -511,6 +742,7 @@ async function refreshHome() {
 
   try {
     const [me, hist] = await Promise.all([api.getMe(), api.getHistory()]);
+    hideNetworkBanner();
     const [w, f = ''] = me.balance_eth.split('.');
     const frac = f.slice(0, 6).replace(/0+$/, '');
     balance = frac ? `${w}.${frac}` : w;
@@ -557,6 +789,7 @@ async function refreshHome() {
       box.append(b);
     });
   } catch (err) {
+    if (err.code === 'NETWORK' || err.status === 0) showNetworkBanner();
     if (err.status !== 401) toast('Could not load your account. Try Refresh.');
   } finally {
     $('home-skel').hidden = true;
@@ -601,22 +834,60 @@ function step(n) {
 function updateKeypadDisplay() {
   $('pay-amount').value = keypadAmount || '0';
 }
+
+function validateAmountLive(val) {
+  const node = $('pay-amount-val');
+  if (!node) return true;
+  const trimmed = (val ?? '').trim();
+  if (!trimmed || trimmed === '0') {
+    node.className = 'inline-val dim';
+    node.textContent = 'Up to 0.5 ETH per payment and 1 ETH per day';
+    return false;
+  }
+  try {
+    const wei = parseEthToWei(trimmed);
+    const maxWei = parseEthToWei('0.5');
+    if (BigInt(wei) > BigInt(maxWei)) {
+      node.className = 'inline-val err';
+      node.textContent = 'Exceeds 0.5 ETH per-payment limit';
+      return false;
+    }
+    node.className = 'inline-val ok';
+    node.textContent = 'Valid amount (up to 0.5 ETH)';
+    return true;
+  } catch {
+    node.className = 'inline-val err';
+    node.textContent = 'Enter a valid amount like 0.05';
+    return false;
+  }
+}
+
+function setAmount(amtStr) {
+  txt('pay-error', '');
+  keypadAmount = amtStr;
+  updateKeypadDisplay();
+  validateAmountLive(keypadAmount);
+}
+
 function handleKeypadKey(k) {
   txt('pay-error', '');
   if (k === 'back') {
     keypadAmount = keypadAmount.slice(0, -1);
     updateKeypadDisplay();
+    validateAmountLive(keypadAmount);
     return;
   }
   if (k === '.') {
     if (keypadAmount.includes('.')) return;
     keypadAmount = keypadAmount ? `${keypadAmount}.` : '0.';
     updateKeypadDisplay();
+    validateAmountLive(keypadAmount);
     return;
   }
   if (keypadAmount === '0') {
     keypadAmount = k;
     updateKeypadDisplay();
+    validateAmountLive(keypadAmount);
     return;
   }
   if (keypadAmount.includes('.')) {
@@ -627,6 +898,7 @@ function handleKeypadKey(k) {
   }
   keypadAmount += k;
   updateKeypadDisplay();
+  validateAmountLive(keypadAmount);
 }
 
 document.querySelectorAll('.keypad .key').forEach((btn) => {
@@ -634,8 +906,7 @@ document.querySelectorAll('.keypad .key').forEach((btn) => {
 });
 document.querySelectorAll('.chips .chip').forEach((c) => {
   c.onclick = () => {
-    keypadAmount = c.dataset.amt || '';
-    updateKeypadDisplay();
+    setAmount(c.dataset.amt || '');
   };
 });
 
@@ -647,6 +918,12 @@ function openPay() {
   $('pay-search').value = '';
   $('pay-password').value = '';
   updateKeypadDisplay();
+  validateAmountLive('');
+  const valEl = $('pay-recipient-val');
+  if (valEl) {
+    valEl.className = 'inline-val dim';
+    valEl.textContent = '';
+  }
   clear($('pay-results'));
   step(1);
   show('pay');
@@ -667,8 +944,14 @@ function choose(u) {
   idemKey = null;
   keypadAmount = '';
   updateKeypadDisplay();
+  validateAmountLive('');
   paintAvatar($('p2-av'), u.name);
   txt('p2-name', u.name);
+  const valEl = $('pay-recipient-val');
+  if (valEl) {
+    valEl.className = 'inline-val ok';
+    valEl.textContent = `Selected: ${u.name}`;
+  }
   step(2);
 }
 async function quickPick(name) {
@@ -681,36 +964,73 @@ async function quickPick(name) {
 
 $('pay-search').addEventListener('input', () => {
   clearTimeout(timer);
-  const q = $('pay-search').value.trim(), box = $('pay-results');
-  if (!q) return clear(box);
+  const q = $('pay-search').value.trim(), box = $('pay-results'), valEl = $('pay-recipient-val');
+  if (!q) {
+    if (valEl) {
+      valEl.className = 'inline-val dim';
+      valEl.textContent = '';
+    }
+    return clear(box);
+  }
+  if (valEl) {
+    valEl.className = 'inline-val dim';
+    valEl.textContent = 'Searching...';
+  }
   timer = setTimeout(async () => {
     try {
       const users = await api.searchUsers(q);
+      hideNetworkBanner();
       clear(box);
-      if (!users.length) box.append(el('div', 'dim', 'No one found with that name.'));
-      users.forEach((u) => {
-        const r = el('div', 'item');
-        r.append(avatar(u.name), el('div', 'name', u.name));
-        r.onclick = () => choose(u);
-        box.append(r);
-      });
-    } catch { /* ignore while typing */ }
+      if (!users.length) {
+        if (valEl) {
+          valEl.className = 'inline-val err';
+          valEl.textContent = 'No one found with that name';
+        }
+        box.append(el('div', 'dim', 'No one found with that name.'));
+      } else {
+        if (valEl) {
+          valEl.className = 'inline-val ok';
+          valEl.textContent = `Found ${users.length} match${users.length > 1 ? 'es' : ''}`;
+        }
+        users.forEach((u) => {
+          const r = el('div', 'item');
+          r.append(avatar(u.name), el('div', 'name', u.name));
+          r.onclick = () => choose(u);
+          box.append(r);
+        });
+      }
+    } catch (err) {
+      if (err.code === 'NETWORK' || err.status === 0) showNetworkBanner();
+      if (valEl) {
+        valEl.className = 'inline-val err';
+        valEl.textContent = 'Search failed';
+      }
+    }
   }, 250);
 });
 
 $('p2-next').onclick = () => {
   const a = keypadAmount.trim();
   try {
-    parseEthToWei(a);
+    const wei = parseEthToWei(a);
+    const maxWei = parseEthToWei('0.5');
+    if (BigInt(wei) > BigInt(maxWei)) {
+      triggerShake($('amount-container'));
+      return txt('pay-error', 'Payment exceeds 0.5 ETH per-payment limit.');
+    }
   } catch {
     triggerShake($('amount-container'));
-    return txt('pay-error', 'Enter an amount like 0.01.');
+    return txt('pay-error', 'Enter a valid ETH amount (e.g. 0.05).');
   }
   amount = a;
   idemKey = crypto.randomUUID();
   txt('p3-amt', `${a} ETH`);
+  txt('review-amount', `${a} ETH`);
+  txt('review-from-name', user.name);
+  paintAvatar($('review-from-av'), user.name);
   txt('p3-name', to.name);
   paintAvatar($('p3-av'), to.name);
+  txt('review-network', 'Local test chain');
   step(3);
   $('pay-password').focus();
 };
@@ -738,44 +1058,62 @@ $('status-copy').onclick = async () => {
   }
 };
 
+if ($('btn-copy-rec-tx')) {
+  $('btn-copy-rec-tx').onclick = async () => {
+    if (!lastReceipt || !lastReceipt.tx) return;
+    try {
+      await navigator.clipboard.writeText(lastReceipt.tx);
+      toast('Copied');
+    } catch {
+      toast('Clipboard unavailable');
+    }
+  };
+}
+
+if ($('status-send-another')) {
+  $('status-send-another').onclick = () => {
+    openPay();
+  };
+}
+
 $('pay-submit').onclick = async () => {
+  const btn = $('pay-submit');
+  if (btn.disabled) return;
   const pw = $('pay-password').value;
   if (!pw) {
     triggerShake($('pay-step-3'));
     return txt('pay-error', 'Enter your password to confirm.');
   }
-  const btn = $('pay-submit');
   btn.disabled = true;
   $('status-receipt').hidden = true;
   $('status-copy').hidden = true;
+  if ($('btn-copy-rec-tx')) $('btn-copy-rec-tx').hidden = true;
+  if ($('status-send-another')) $('status-send-another').hidden = true;
   const tl = $('status-timeline');
   if (tl) tl.hidden = true;
-  status('spin', 'Verifying...', 'Signing and checking your payment securely.');
+
+  // Single honest processing state (no fake intermediate steps)
+  status('spin', 'Processing payment...', 'Submitting your payment securely to the network.');
   try {
     const r = await api.pay(to.id, amount, pw, idemKey);
+    hideNetworkBanner();
     lastReceipt = { to: r.to, amount: r.amount_eth, tx: r.tx_hash || '' };
     txt('rec-to', r.to);
     txt('rec-amt', `${r.amount_eth} ETH`);
     txt('rec-tx', r.tx_hash || 'Confirmed on-chain');
     $('status-receipt').hidden = false;
     $('status-copy').hidden = false;
-    if (tl) tl.hidden = false;
+    if ($('btn-copy-rec-tx')) $('btn-copy-rec-tx').hidden = !r.tx_hash;
+    if ($('status-send-another')) $('status-send-another').hidden = false;
     status('good', 'Payment sent', `${r.amount_eth} ETH sent to ${r.to}.`, true, false);
   } catch (err) {
+    if (err.code === 'NETWORK' || err.status === 0) showNetworkBanner();
     if (tl) tl.hidden = true;
     if (err.status === 401 && err.code !== 'WRONG_PASSWORD') return;
     if (err.code === 'WRONG_PASSWORD') {
       toast('Wrong password. Nothing was sent.');
     }
-    const m = {
-      WRONG_PASSWORD: 'Wrong password. Nothing was sent.',
-      INSUFFICIENT_BALANCE: 'Your balance is too low for this payment.',
-      LIMIT_EXCEEDED: err.message,
-      RATE_LIMITED: 'Too many payments. Wait a minute and try again.',
-      SELF_PAYMENT: 'You cannot send money to yourself.',
-      RECIPIENT_NOT_FOUND: 'That person was not found.',
-      INVALID_AMOUNT: err.message
-    }[err.code] || 'Payment failed. Nothing was sent. Please try again.';
+    const m = friendlyError(err);
     status('fail', 'Payment not sent', m, false, true);
   } finally {
     btn.disabled = false;
