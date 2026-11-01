@@ -54,7 +54,8 @@ py-ecc==8.0.0
 pycryptodome==3.23.0
 ckzg==2.1.8
 
-# --- Post-quantum crypto (requires liboqs system library) ---
+# --- Cryptography & post-quantum crypto ---
+cryptography==46.0.6
 liboqs-python==0.16.0.1
 
 # --- Async / networking (web3 / aiohttp transport) ---

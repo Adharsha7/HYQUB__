@@ -25,6 +25,7 @@ exceptions that the API route translates into HTTP responses.
 
 from __future__ import annotations
 
+import secrets
 import time
 
 from web3 import Web3
@@ -67,14 +68,8 @@ _approval_service = ApprovalService()
 def _generate_approval_nonce() -> int:
     """
     Generate an approval nonce.
-
-    NOTE: this is a millisecond-timestamp-based nonce, not a persistent
-    counter or database sequence. It's extremely unlikely to collide in
-    practice, but a production deployment should replace this with a
-    real monotonic counter (e.g. backed by the database once one exists)
-    rather than relying on clock resolution.
     """
-    return int(time.time() * 1000)
+    return secrets.randbits(256)
 
 
 def submit_transaction(

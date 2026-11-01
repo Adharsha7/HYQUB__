@@ -1,234 +1,652 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HYQUB — Payment</title>
-  <link rel="stylesheet" href="css/styles.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HYQUB</title>
+<style>
+:root {
+  --bg: #0d0f16;
+  --s1: #161925;
+  --s2: #1e2232;
+  --line: #2a2f45;
+  --tx: #eef0f8;
+  --dim: #8c93ad;
+  --ac: #8b9cff;
+  --ac2: #6677f0;
+  --ok: #4fd69c;
+  --bad: #ff7a7a;
+  --warn: #ffd166;
+  --r: 18px;
+  --bal-dim: #b9c1ff;
+  --card: var(--s1);
+  --card2: var(--s2);
+  --text: var(--tx);
+  --muted: var(--dim);
+  --accent: var(--s2);
+  --font: "Segoe UI", Inter, system-ui, sans-serif;
+}
+[data-theme="light"] {
+  --bg: #f4f6fb;
+  --s1: #ffffff;
+  --s2: #e8ecf8;
+  --line: #d3daec;
+  --tx: #131726;
+  --dim: #616a84;
+  --ac: #4f63f6;
+  --ac2: #384ce0;
+  --ok: #1b9e67;
+  --bad: #d94141;
+  --warn: #b8860b;
+  --bal-dim: #d8e1ff;
+  --card: var(--s1);
+  --card2: var(--s2);
+  --text: var(--tx);
+  --muted: var(--dim);
+  --accent: var(--s2);
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0;
+  font-family: var(--font);
+  background: radial-gradient(900px 500px at 50% -10%, #232a52 0, var(--bg) 60%) fixed;
+  color: var(--tx);
+  min-height: 100vh;
+}
+[data-theme="light"] body {
+  background: radial-gradient(900px 500px at 50% -10%, #d8e1ff 0, var(--bg) 60%) fixed;
+}
+.app {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 16px 16px 24px;
+}
+@media (max-width: 900px) {
+  .app { max-width: 440px; }
+  .dashboard-grid > * { grid-column: span 12 !important; }
+}
+#screen-auth, #screen-pay, #screen-receive, #screen-status {
+  max-width: 440px;
+  margin: 0 auto;
+}
+h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -0.02em; }
+button { font: inherit; color: inherit; cursor: pointer; border: 0; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+.dim { color: var(--dim); font-size: 13px; }
+.ok { color: var(--ok); }
+.bad { color: var(--bad); }
+.card { background: var(--s1); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; margin-top: 14px; }
+.btn { background: var(--s2); border: 1px solid var(--line); border-radius: 14px; padding: 11px 16px; font-weight: 600; font-size: 14px; transition: transform .12s, background .2s, border-color .2s; }
+.btn:hover { background: #262b40; }
+[data-theme="light"] .btn:hover { background: #dde3f4; }
+.btn:active { transform: scale(.97); }
+.btn.pri { background: linear-gradient(135deg, var(--ac), var(--ac2)); border: 0; color: #0b0e1c; }
+.btn.pri:disabled { opacity: .5; cursor: wait; }
+.btn.full { width: 100%; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.av { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; color: #0b0e1c; flex: none; }
+.av.lg { width: 58px; height: 58px; font-size: 24px; }
+input { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 13px 14px; color: var(--tx); font: inherit; }
+input:focus { border-color: var(--ac); }
+label { display: block; margin: 14px 0 6px; font-size: 13px; color: var(--dim); }
+.err { color: var(--bad); font-size: 13px; min-height: 18px; margin-bottom: 6px; }
+.link-btn { background: none; border: 0; padding: 0; color: var(--ac); font-weight: 600; text-decoration: underline; cursor: pointer; display: inline; font-size: inherit; }
+.link-btn:hover { color: var(--ac2); }
+
+/* Header & Theme */
+.app-header { display: flex; align-items: center; justify-content: space-between; padding: 4px 2px 14px; gap: 10px; }
+.header-brand { display: flex; align-items: center; gap: 8px; font-weight: 700; letter-spacing: -0.02em; font-size: 18px; }
+.logo-badge { width: 26px; height: 26px; border-radius: 8px; background: linear-gradient(135deg, var(--ac), var(--ac2)); color: #0b0e1c; display: grid; place-items: center; font-size: 12px; font-weight: 800; }
+.header-right { display: flex; align-items: center; gap: 10px; }
+.icon-btn { width: 36px; height: 36px; padding: 0; border-radius: 50%; display: grid; place-items: center; font-size: 16px; }
+
+/* Header user pill */
+.header-user-pill { display: flex; align-items: center; gap: 8px; background: var(--s2); border: 1px solid var(--line); border-radius: 22px; padding: 4px 12px 4px 4px; }
+.header-user-pill .av { width: 28px; height: 28px; font-size: 12px; }
+.header-user-name { font-size: 13px; font-weight: 600; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.btn-logout { background: var(--s2); border: 1px solid var(--line); border-radius: 10px; padding: 7px 14px; font-weight: 600; font-size: 12px; color: var(--dim); transition: background .15s, border-color .15s, color .15s; }
+.btn-logout:hover { border-color: var(--bad); color: var(--bad); }
+.btn-logout svg { vertical-align: middle; margin-right: 4px; }
+
+/* Dashboard Grid */
+.dashboard-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
+.span-4 { grid-column: span 4; }
+.span-6 { grid-column: span 6; }
+.span-8 { grid-column: span 8; }
+.span-12 { grid-column: span 12; }
+
+/* Greeting */
+.greeting { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 4px; }
+.greeting-sub { font-size: 13px; color: var(--dim); margin-bottom: 16px; }
+
+/* Wallet Card */
+.bal { background: linear-gradient(145deg, #272f66, #14172a); border-radius: 24px; padding: 22px; margin-top: 14px; border: 1px solid #3a4387; position: relative; overflow: hidden; }
+.bal::before { content: ''; position: absolute; inset: -1px; border-radius: 25px; padding: 1px; background: linear-gradient(145deg, rgba(139,156,255,0.4), rgba(102,119,240,0.1), rgba(79,214,156,0.2)); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none; z-index: 1; }
+.bal-glow { position: absolute; top: -40px; right: -40px; width: 180px; height: 180px; background: radial-gradient(circle, rgba(139,156,255,0.12) 0%, transparent 70%); pointer-events: none; }
+[data-theme="light"] .bal { background: linear-gradient(145deg, #3746a6, #212c75); border-color: #5566d8; color: #f4f6fb; }
+.badges-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.badge { display: inline-flex; align-items: center; font-size: 10px; font-weight: 700; letter-spacing: 0.03em; padding: 4px 8px; border-radius: 20px; text-transform: uppercase; line-height: 1; }
+.ml-dsa-badge { background: rgba(139,156,255,0.2); color: #c4ceff; border: 1px solid rgba(139,156,255,0.35); }
+.testnet-badge { background: rgba(255,209,102,0.2); color: #ffd166; border: 1px solid rgba(255,209,102,0.35); }
+.ok-badge { background: rgba(79,214,156,0.18); color: var(--ok); border: 1px solid rgba(79,214,156,0.3); }
+.bal .amt { font-size: 48px; font-weight: 700; letter-spacing: -0.03em; margin: 8px 0 2px; line-height: 1.1; position: relative; z-index: 2; }
+.bal .amt .eth-unit { font-size: 20px; font-weight: 600; color: var(--bal-dim); margin-left: 4px; }
+.bal .wallet-addr-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; position: relative; z-index: 2; }
+.bal .wallet-addr { font-size: 11px; font-family: "SF Mono", "Consolas", monospace; color: var(--bal-dim); opacity: 0.7; }
+.btn-copy-addr { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; padding: 3px 8px; font-size: 10px; color: var(--bal-dim); cursor: pointer; transition: background .15s; }
+.btn-copy-addr:hover { background: rgba(255,255,255,0.16); }
+.demo-rate-line { font-size: 12px; color: var(--dim); margin: 6px 0 16px; }
+[data-theme="light"] .bal .demo-rate-line { color: #c0c8eb; }
+.acts { margin-top: 14px; display: flex; gap: 10px; }
+.acts .btn { flex: 1; }
+
+/* Daily Limit Meter */
+.limit-card { margin-top: 14px; padding: 14px 16px; }
+.progress-bar { width: 100%; height: 7px; background: var(--bg); border-radius: 4px; overflow: hidden; margin-top: 8px; border: 1px solid var(--line); }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--ac), var(--ok)); border-radius: 4px; transition: width .4s ease; }
+
+/* Activity & Groups */
+.activity-card { margin-top: 16px; padding: 16px 18px; }
+.activity-header { display: flex; flex-direction: column; gap: 10px; margin-bottom: 4px; }
+.act-tabs { display: flex; gap: 4px; background: var(--bg); border-radius: 12px; padding: 3px; }
+.act-tabs button { flex: 1; padding: 6px 4px; font-size: 12px; border-radius: 9px; background: none; color: var(--dim); font-weight: 600; }
+.act-tabs button.on { background: var(--s2); color: var(--tx); }
+.group-label { font-size: 11px; font-weight: 700; color: var(--dim); letter-spacing: 0.06em; margin: 14px 0 6px; text-transform: uppercase; }
+.group-label:first-child { margin-top: 4px; }
+.contacts { display: flex; gap: 14px; overflow-x: auto; padding: 4px 2px 8px; scrollbar-width: none; }
+.contact { background: none; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; color: var(--dim); min-width: 60px; }
+.item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); cursor: pointer; transition: background .15s; border-radius: 8px; }
+.item:hover { background: rgba(139,156,255,0.04); }
+.item:last-child { border: 0; }
+.item .mid { flex: 1; min-width: 0; }
+.item .name { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+.item .name .av { width: 24px; height: 24px; font-size: 10px; }
+.tx-ico { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; flex: none; }
+.tx-ico.sent { background: rgba(255,122,122,0.15); color: var(--bad); }
+.tx-ico.recv { background: rgba(79,214,156,0.15); color: var(--ok); }
+.tx-ico svg { width: 16px; height: 16px; }
+.item-right { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.item-right .tx-amount { font-size: 14px; font-weight: 600; }
+.item-right .tx-amount.sent-amount { color: var(--tx); }
+.item-right .tx-amount.recv-amount { color: var(--ok); }
+.chip-status { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 6px; border-radius: 6px; display: inline-block; }
+.chip-status.ok { background: rgba(79,214,156,0.15); color: var(--ok); }
+.chip-status.bad { background: rgba(255,122,122,0.15); color: var(--bad); }
+.chip-status.pending { background: rgba(255,209,102,0.15); color: var(--warn); animation: pulsePending 2s infinite ease-in-out; }
+@keyframes pulsePending { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+.item .time-relative { font-size: 12px; color: var(--dim); }
+.hash { display: none; word-break: break-all; font-size: 11px; color: var(--dim); margin-top: 4px; }
+.item.open .hash { display: block; }
+
+/* Skeleton placeholders */
+.skel { height: 52px; border-radius: 12px; margin: 8px 0; background: linear-gradient(90deg, var(--s2), #2a3050, var(--s2)); background-size: 200% 100%; animation: sh 1.2s infinite; }
+.skel-balance { height: 160px; border-radius: 24px; margin-bottom: 14px; background: linear-gradient(90deg, var(--s2), #2a3050, var(--s2)); background-size: 200% 100%; animation: sh 1.2s infinite; }
+@keyframes sh { to { background-position: -200% 0; } }
+
+/* Empty state */
+.empty-state { display: flex; flex-direction: column; align-items: center; padding: 32px 16px; text-align: center; }
+.empty-state-icon { width: 64px; height: 64px; border-radius: 50%; background: var(--s2); display: grid; place-items: center; margin-bottom: 14px; }
+.empty-state-icon svg { width: 28px; height: 28px; color: var(--dim); }
+.empty-state-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+.empty-state-sub { font-size: 13px; color: var(--dim); margin-bottom: 16px; }
+.empty-state .btn { font-size: 13px; padding: 9px 20px; }
+
+/* Send Screen & Keypad */
+.steps { display: flex; gap: 6px; margin: 14px 0 4px; }
+.steps i { flex: 1; height: 4px; border-radius: 2px; background: var(--line); }
+.steps i.on { background: var(--ac); }
+.amount-container { margin: 10px 0 6px; text-align: center; }
+.amount-display-row { display: inline-flex; align-items: baseline; justify-content: center; gap: 6px; background: var(--bg); border: 1px solid var(--line); border-radius: 18px; padding: 8px 18px; min-width: 220px; }
+.big { font-size: 38px; font-weight: 700; text-align: right; background: none; border: 0; padding: 0; color: var(--tx); width: 150px; }
+.amount-unit { font-size: 18px; font-weight: 700; color: var(--dim); }
+.chips { display: flex; gap: 8px; justify-content: center; margin: 10px 0 8px; }
+.chip { background: var(--s2); border: 1px solid var(--line); border-radius: 20px; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.chip:hover { border-color: var(--ac); }
+.keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+.key { background: var(--s2); border: 1px solid var(--line); border-radius: 14px; padding: 12px; font-size: 18px; font-weight: 600; color: var(--tx); cursor: pointer; transition: background .12s, transform .1s; display: grid; place-items: center; }
+.key:hover { background: #262b40; }
+[data-theme="light"] .key:hover { background: #dde3f4; }
+.key:active { transform: scale(.95); }
+.key.key-back { font-size: 16px; color: var(--dim); }
+.sum { text-align: center; margin: 8px 0 4px; }
+
+/* Status Screen, Timeline & Receipt */
+.stat { text-align: center; padding: 26px 12px; }
+.ring { width: 84px; height: 84px; margin: 0 auto 14px; border-radius: 50%; display: grid; place-items: center; font-size: 40px; }
+.ring.spin { border: 4px solid var(--line); border-top-color: var(--ac); animation: sp 1s linear infinite; }
+.ring.good { background: rgba(79,214,156,.15); color: var(--ok); animation: pop .4s ease; }
+.ring.fail { background: rgba(255,122,122,.15); color: var(--bad); animation: pop .4s ease; }
+@keyframes sp { to { transform: rotate(360deg); } }
+@keyframes pop { from { transform: scale(.4); opacity: 0; } }
+.receipt-card { background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; margin: 16px 0 8px; text-align: left; font-size: 13px; }
+
+.timeline { display: flex; flex-direction: column; gap: 10px; margin: 16px 0 8px; padding: 14px 16px; background: var(--bg); border: 1px solid var(--line); border-radius: 14px; text-align: left; }
+.timeline-step { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; color: var(--tx); opacity: 0; transform: translateY(4px); animation: stepFadeIn 0.3s ease forwards; animation-delay: var(--delay, 0ms); }
+.timeline-dot { width: 20px; height: 20px; border-radius: 50%; background: rgba(79, 214, 156, 0.2); color: var(--ok); display: grid; place-items: center; font-size: 11px; font-weight: 700; flex: none; }
+@keyframes stepFadeIn { to { opacity: 1; transform: translateY(0); } }
+
+/* Bottom Sheet */
+.sheet-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(2px); z-index: 90; }
+.bottom-sheet { position: fixed; left: 50%; bottom: 0; transform: translateX(-50%); width: 100%; max-width: 440px; background: var(--s1); border: 1px solid var(--line); border-radius: 24px 24px 0 0; padding: 18px 20px 28px; z-index: 100; box-shadow: 0 -10px 40px rgba(0,0,0,0.5); animation: slideUp .25s ease; box-sizing: border-box; }
+@keyframes slideUp { from { transform: translate(-50%, 100%); } to { transform: translate(-50%, 0); } }
+.sheet-handle { width: 40px; height: 4px; background: var(--line); border-radius: 2px; margin: 0 auto 16px; }
+.sheet-detail-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.sheet-hash { font-family: monospace; font-size: 11px; word-break: break-all; background: var(--bg); padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); color: var(--dim); width: 100%; box-sizing: border-box; }
+
+
+/* Autofill Fix & Shake */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px var(--bg) inset !important;
+  -webkit-text-fill-color: var(--tx) !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+.shake { animation: shake 0.35s ease; }
+
+/* Toast */
+#toast { position: fixed; left: 50%; bottom: 80px; transform: translateX(-50%); background: var(--s2); border: 1px solid var(--line); padding: 11px 18px; border-radius: 14px; opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 120; font-size: 13px; font-weight: 600; box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
+#toast.on { opacity: 1; }
+
+/* Network Banner */
+.network-banner {
+  background: rgba(255, 122, 122, 0.16);
+  border: 1px solid var(--bad);
+  color: var(--bad);
+  padding: 10px 14px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: slideDown .2s ease;
+}
+@keyframes slideDown { from { transform: translateY(-8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+/* Inline Validation Messages */
+.inline-val { font-size: 12px; min-height: 18px; margin: 4px 0 6px; }
+.inline-val.err { color: var(--bad); }
+.inline-val.ok { color: var(--ok); }
+.inline-val.dim { color: var(--dim); }
+
+/* Review Summary Card */
+.review-card {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin: 12px 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.review-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+.review-party {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.review-party .av {
+  width: 24px;
+  height: 24px;
+  font-size: 10px;
+}
+
+/* Verification list in tx sheet */
+.sheet-verify-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-top: 6px;
+}
+.sheet-verify-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.sheet-verify-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  flex: none;
+}
+.sheet-verify-dot.done {
+  background: rgba(79, 214, 156, 0.2);
+  color: var(--ok);
+}
+.sheet-verify-dot.pending {
+  background: rgba(255, 209, 102, 0.2);
+  color: var(--warn);
+  animation: pulsePending 1.5s infinite;
+}
+.sheet-verify-dot.fail {
+  background: rgba(255, 122, 122, 0.2);
+  color: var(--bad);
+}
+.sheet-verify-dot.idle {
+  background: var(--s2);
+  color: var(--dim);
+}
+
+
+@media(prefers-reduced-motion: reduce) {
+  *, ::before, ::after { animation: none !important; transition: none !important; }
+}
+@media (max-width: 360px) {
+  .bal .amt { font-size: 32px; }
+  .greeting { font-size: 18px; }
+  .header-user-name { max-width: 60px; }
+  .acts { flex-direction: column; }
+}
+</style>
 </head>
 <body>
-<div class="app-shell">
-
-  <!-- ── Top bar ── -->
-  <header class="topbar">
-    <div class="topbar-brand">
-      <div class="topbar-logo">HQ</div>
-      <span class="topbar-name">HYQUB</span>
-    </div>
-    <div class="topbar-right">
-      <span id="session-badge" class="session-pill">Session: not started</span>
-    </div>
-  </header>
-
-  <!-- ── Side nav ── -->
-  <nav class="sidenav">
-    <button class="nav-btn active" data-screen="dashboard">
-      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-        <rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/>
-        <rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/>
-      </svg>
-      Dashboard
-    </button>
-    <button class="nav-btn" data-screen="send">
-      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M2 8h12M10 4l4 4-4 4"/>
-      </svg>
-      Send
-    </button>
-  </nav>
-
-  <!-- ── Main ── -->
-  <main class="main-content">
-
-    <!-- ════ Dashboard ════ -->
-    <div id="screen-dashboard" class="screen active">
-      <div class="page-title">Dashboard</div>
-
-      <!-- Wallet selector -->
-      <div class="wallet-selector-bar">
-        <label for="dashboard-sender-sel">Viewing wallet:</label>
-        <select id="dashboard-sender-sel"></select>
-      </div>
-
-      <!-- Wallet identity -->
-      <div class="card" style="margin-bottom:14px">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
-          <div>
-            <div class="label" style="margin-bottom:4px">Wallet</div>
-            <div style="font-weight:600;font-size:15px" id="wallet-label"></div>
-            <div class="address-display" style="margin-top:4px">
-              <span class="address-short mono" id="wallet-addr-short"></span>
-              <button class="copy-btn btn-sm" id="wallet-copy-btn">Copy</button>
-            </div>
-          </div>
-          <span id="wallet-session-status" class="pill amber">Session key: not started</span>
-        </div>
-      </div>
-
-      <!-- Balance hero -->
-      <div class="balance-hero">
-        <div class="balance-label">Available Balance</div>
-        <div>
-          <span class="balance-amount" id="balance-eth">—</span>
-          <span class="balance-unit">ETH</span>
-        </div>
-        <div class="balance-wei" id="balance-wei-detail"></div>
-        <div class="balance-actions">
-          <button class="btn btn-primary" id="btn-go-send">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 8h12M10 4l4 4-4 4"/></svg>
-            Send Payment
-          </button>
-          <button class="btn btn-secondary" id="btn-refresh">↻ Refresh</button>
-        </div>
-      </div>
-
-      <!-- Stats -->
-      <div class="stat-grid">
-        <div class="stat-card"><div class="stat-title">Network</div><div class="stat-value" id="stat-network">—</div></div>
-        <div class="stat-card"><div class="stat-title">Chain ID</div><div class="stat-value" id="stat-chain">—</div></div>
-        <div class="stat-card"><div class="stat-title">Block</div><div class="stat-value" id="stat-block">—</div></div>
-        <div class="stat-card"><div class="stat-title">Nonce</div><div class="stat-value" id="stat-nonce">—</div></div>
-        <div class="stat-card"><div class="stat-title">Key Version</div><div class="stat-value" id="stat-keyver">—</div></div>
-        <div class="stat-card"><div class="stat-title">Registered</div><div class="stat-value" id="stat-registered">—</div></div>
-        <div class="stat-card"><div class="stat-title">Owner</div><div class="stat-value mono" id="stat-owner">—</div></div>
-      </div>
-
-      <div id="dashboard-status" class="text-dim" style="margin-bottom:14px;font-size:13px"></div>
-
-      <!-- History -->
-      <div class="card">
-        <div class="label" style="margin-bottom:4px">Recent Activity</div>
-        <div class="history-note">This session only — not persisted.</div>
-        <div id="history-empty" class="history-empty">No payments this session yet.</div>
-        <div style="overflow-x:auto">
-          <table class="history-table">
-            <thead><tr><th>Status</th><th>Time</th><th>From</th><th>To</th><th>Amount</th><th>Tx Hash</th></tr></thead>
-            <tbody id="history-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- ════ Send ════ -->
-    <div id="screen-send" class="screen">
-      <div class="page-title">Send Payment</div>
-      <div class="card" style="max-width:540px">
-        <div id="send-error" class="field-error" style="margin-bottom:10px"></div>
-        <form id="send-form">
-          <!-- FROM -->
-          <div class="form-group">
-            <label for="from-sel">From</label>
-            <select id="from-sel"></select>
-            <div class="sender-detail" id="sender-detail">
-              <span class="sender-addr mono"></span>
-              <span class="sender-bal"></span>
-            </div>
-          </div>
-
-          <!-- TO -->
-          <div class="form-group">
-            <label for="to-sel">To</label>
-            <select id="to-sel"></select>
-          </div>
-
-          <!-- Manual recipient -->
-          <div class="form-group" id="manual-group" hidden>
-            <label for="recipient-manual">Custom recipient address</label>
-            <input type="text" id="recipient-manual" placeholder="0x…" autocomplete="off">
-          </div>
-
-          <!-- Amount -->
-          <div class="form-group">
-            <label for="amount-input">Amount</label>
-            <div class="input-suffix">
-              <input type="text" id="amount-input" placeholder="0.00" inputmode="decimal" autocomplete="off">
-              <span class="input-suffix-label">ETH</span>
-            </div>
-          </div>
-
-          <button type="submit" class="btn btn-primary btn-full">Review Payment →</button>
-        </form>
-      </div>
-    </div>
-
-    <!-- ════ Review ════ -->
-    <div id="screen-review" class="screen">
-      <div class="page-title">Review Payment</div>
-      <div class="card" style="max-width:540px">
-        <div class="review-row">
-          <span class="review-key">Amount</span>
-          <span class="review-val review-amount-big" id="review-amount">—</span>
-        </div>
-        <div class="review-row">
-          <span class="review-key">From</span>
-          <span class="review-val mono" id="review-from">—</span>
-        </div>
-        <div class="review-row">
-          <span class="review-key">To</span>
-          <span class="review-val mono" id="review-to-short">—</span>
-        </div>
-        <div class="review-row">
-          <span class="review-key">Network</span>
-          <span class="review-val" id="review-network">—</span>
-        </div>
-        <div class="review-row">
-          <span class="review-key">Protocol</span>
-          <span class="review-val text-dim">HYQUB ML-DSA · ERC-4337</span>
-        </div>
-        <div style="display:flex;gap:10px;margin-top:18px">
-          <button class="btn btn-secondary" id="btn-back-to-send">← Back</button>
-          <button class="btn btn-primary" style="flex:1" id="btn-confirm-pay">Confirm &amp; Pay</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ════ Progress ════ -->
-    <div id="screen-progress" class="screen">
-      <div class="progress-wrap">
-        <div class="progress-title">Processing Payment…</div>
-        <div class="step-list" id="step-list"></div>
-      </div>
-    </div>
-
-    <!-- ════ Success ════ -->
-    <div id="screen-success" class="screen">
-      <div class="result-wrap">
-        <div class="result-icon">✅</div>
-        <div class="result-title">Payment Successful</div>
-        <div class="result-sub">Transaction confirmed on Anvil chain.</div>
-        <div class="result-details">
-          <div class="review-row" style="padding:13px 16px"><span class="review-key">Amount</span><span class="review-val" id="success-amount">—</span></div>
-          <div class="review-row" style="padding:13px 16px"><span class="review-key">From</span><span class="review-val mono" id="success-from">—</span></div>
-          <div class="review-row" style="padding:13px 16px;border-bottom:none"><span class="review-key">To</span><span class="review-val mono" id="success-to">—</span></div>
-        </div>
-        <div class="tx-hash-row">
-          <div>
-            <div class="tx-hash-label">Transaction Hash</div>
-            <div class="tx-hash-val mono" id="success-tx-hash">—</div>
-          </div>
-          <div id="success-hash-copy"></div>
-        </div>
-        <div style="display:flex;gap:10px;justify-content:center">
-          <button class="btn btn-secondary" id="btn-success-another">Send Another</button>
-          <button class="btn btn-primary" id="btn-success-done">Done</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ════ Failure ════ -->
-    <div id="screen-failure" class="screen">
-      <div class="result-wrap">
-        <div class="result-icon">❌</div>
-        <div class="error-banner" id="failure-message"></div>
-        <div style="display:flex;gap:10px;justify-content:center">
-          <button class="btn btn-secondary" id="btn-failure-home">← Home</button>
-          <button class="btn btn-primary" id="btn-try-again">Try Again</button>
-        </div>
-      </div>
-    </div>
-
-  </main>
+<div class="app">
+<div id="network-banner" class="network-banner" hidden role="alert">
+  <span style="font-size:15px">⚠</span>
+  <span id="network-banner-text">Cannot reach the server. Check that the backend is running.</span>
 </div>
+
+<header class="app-header">
+  <div class="header-brand">
+    <div class="logo-badge">HQ</div>
+    <span>HYQUB</span>
+  </div>
+  <div class="header-right">
+    <div id="header-user" class="header-user-pill" hidden>
+      <div id="header-av" class="av"></div>
+      <span id="header-username" class="header-user-name"></span>
+    </div>
+    <button id="btn-logout" class="btn-logout" type="button" hidden>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Log out
+    </button>
+    <button id="btn-theme" class="btn icon-btn" type="button" aria-label="Toggle theme">☼</button>
+  </div>
+</header>
+
+<section id="screen-auth">
+  <div style="text-align:center;margin:28px 0 8px">
+    <h1 style="font-size:32px">HYQUB</h1>
+    <div class="dim">Payments secured with post-quantum signatures</div>
+  </div>
+  <div id="auth-card" class="card">
+    <form id="auth-form" autocomplete="off">
+      <label for="auth-username">Username</label><input id="auth-username" autocomplete="username" required>
+      <label for="auth-password">Password</label><input id="auth-password" type="password" autocomplete="current-password" required>
+      <div id="auth-error" class="err" role="alert" style="margin-top:10px"></div>
+      <button id="auth-submit" class="btn pri full" type="submit">Log in</button>
+      <div id="auth-switch" class="dim" style="text-align:center;margin-top:14px;font-size:13px">
+        <span id="auth-switch-text">Don't have an account? </span><button id="auth-switch-btn" class="link-btn" type="button">Sign up</button>
+      </div>
+    </form>
+    <p id="auth-hint" class="dim" hidden>Creating your secure wallet. This can take up to 20 seconds.</p>
+  </div>
+</section>
+
+<section id="screen-home" hidden>
+  <!-- Greeting -->
+  <div id="home-greeting" class="greeting"></div>
+  <div class="greeting-sub">Your post-quantum secured wallet</div>
+
+  <section class="dashboard-grid" style="margin-top:0">
+    <div id="price-chart" class="span-8"></div>
+    <div class="span-4" style="display:flex;flex-direction:column;gap:14px">
+
+      <!-- Balance skeleton -->
+      <div id="home-bal-skel" class="skel-balance" hidden></div>
+
+      <div id="home-bal-card" class="bal" style="margin-top:0">
+        <div class="bal-glow"></div>
+        <div class="row" style="margin-bottom:12px;position:relative;z-index:2">
+          <div class="badges-row">
+            <span class="badge ml-dsa-badge">Protected by ML-DSA</span>
+            <span class="badge testnet-badge">Test network</span>
+          </div>
+          <button id="btn-eye" class="btn" style="padding:6px 12px;font-size:12px" aria-label="Show or hide balance">Hide</button>
+        </div>
+        <div class="dim" style="color:var(--bal-dim);font-size:13px;position:relative;z-index:2">Available balance</div>
+        <div class="amt"><span id="home-balance">0</span> <span class="eth-unit">ETH</span></div>
+        <div id="home-demo-usd" class="demo-rate-line"></div>
+        <div id="home-wallet-addr-row" class="wallet-addr-row" hidden>
+          <span id="home-wallet-addr" class="wallet-addr"></span>
+          <button id="btn-copy-addr" class="btn-copy-addr" type="button" aria-label="Copy wallet address">Copy</button>
+        </div>
+        <div class="acts">
+          <button id="btn-go-pay" class="btn pri full" type="button">Send</button>
+          <button id="btn-go-receive" class="btn full" type="button">Receive</button>
+        </div>
+      </div>
+
+      <div class="card limit-card" style="margin-top:0">
+        <div class="row">
+          <span style="font-weight:600;font-size:14px">Daily limit</span>
+          <span id="limit-text" class="dim" style="font-size:12px">0.000 / 1 ETH sent in 24h</span>
+        </div>
+        <div class="progress-bar">
+          <div id="limit-fill" class="progress-fill" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="contacts-wrap" class="span-12" style="margin-top:0" hidden>
+      <h2 style="font-size:16px;margin:10px 0 6px">Send again</h2>
+      <div id="contacts" class="contacts"></div>
+    </div>
+
+    <div class="card activity-card span-12" style="margin-top:0">
+      <div class="activity-header">
+        <div class="row">
+          <h2 style="font-size:16px">Activity</h2>
+          <button id="btn-refresh" class="btn" type="button" style="padding:6px 14px;font-size:12px">Refresh</button>
+        </div>
+        <div class="act-tabs">
+          <button id="tab-filter-all" class="on" type="button">All</button>
+          <button id="tab-filter-sent" type="button">Sent</button>
+          <button id="tab-filter-recv" type="button">Received</button>
+          <button id="tab-filter-fail" type="button">Failed</button>
+        </div>
+      </div>
+      <div id="home-skel"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+      <div id="home-empty" hidden>
+        <div class="empty-state">
+          <div class="empty-state-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            </svg>
+          </div>
+          <div class="empty-state-title">No payments yet</div>
+          <div class="empty-state-sub">Start by sending a payment to someone</div>
+          <button id="btn-empty-send" class="btn pri" type="button">Send your first payment</button>
+        </div>
+      </div>
+      <div id="home-history"></div>
+    </div>
+  </section>
+
+  <!-- Hidden elements kept for JS compatibility -->
+  <div id="home-av" class="av" hidden></div>
+  <h2 id="home-name" hidden></h2>
+</section>
+
+<section id="screen-pay" hidden>
+  <div class="row"><button id="btn-pay-back" class="btn" type="button">Back</button><h2>Send money</h2><span style="width:64px"></span></div>
+  <div class="steps"><i id="st1" class="on"></i><i id="st2"></i><i id="st3"></i></div>
+  <div id="pay-error" class="err" role="alert"></div>
+
+  <div id="pay-step-1" class="card" style="margin-top:6px">
+    <label for="pay-search" style="margin-top:0">Who are you sending to?</label>
+    <input id="pay-search" placeholder="Search by name" autocomplete="off">
+    <div id="pay-recipient-val" class="inline-val dim" role="status"></div>
+    <div id="pay-results" style="margin-top:8px"></div>
+  </div>
+
+  <div id="pay-step-2" class="card" style="margin-top:6px" hidden>
+    <div class="sum">
+      <div id="p2-av" class="av lg" style="margin:0 auto 8px"></div>
+      <div class="dim">Sending to</div>
+      <h2 id="p2-name"></h2>
+    </div>
+    <div id="amount-container" class="amount-container">
+      <div class="amount-display-row">
+        <input id="pay-amount" class="big" readonly placeholder="0" autocomplete="off" aria-label="Amount in ETH">
+        <span class="amount-unit">ETH</span>
+      </div>
+    </div>
+    <div id="pay-amount-val" class="inline-val dim" role="status" style="text-align:center">Up to 0.5 ETH per payment and 1 ETH per day</div>
+    <div class="chips">
+      <button type="button" class="chip" data-amt="0.01">0.01 ETH</button>
+      <button type="button" class="chip" data-amt="0.05">0.05 ETH</button>
+      <button type="button" class="chip" data-amt="0.1">0.1 ETH</button>
+    </div>
+    <div class="keypad">
+      <button type="button" class="key" data-k="1">1</button>
+      <button type="button" class="key" data-k="2">2</button>
+      <button type="button" class="key" data-k="3">3</button>
+      <button type="button" class="key" data-k="4">4</button>
+      <button type="button" class="key" data-k="5">5</button>
+      <button type="button" class="key" data-k="6">6</button>
+      <button type="button" class="key" data-k="7">7</button>
+      <button type="button" class="key" data-k="8">8</button>
+      <button type="button" class="key" data-k="9">9</button>
+      <button type="button" class="key" data-k=".">.</button>
+      <button type="button" class="key" data-k="0">0</button>
+      <button type="button" class="key key-back" data-k="back" aria-label="Backspace">⌫</button>
+    </div>
+    <button id="p2-next" class="btn pri full" type="button" style="margin-top:14px">Continue</button>
+  </div>
+
+  <div id="pay-step-3" class="card" style="margin-top:6px" hidden>
+    <div class="sum" style="margin-bottom:12px">
+      <div class="dim">Review payment</div>
+      <h2 id="p3-amt" style="font-size:32px;margin:4px 0"></h2>
+    </div>
+    <div class="review-card">
+      <div class="review-row">
+        <span class="dim">From</span>
+        <div class="review-party">
+          <div id="review-from-av" class="av"></div>
+          <span id="review-from-name" style="font-weight:600"></span>
+        </div>
+      </div>
+      <div class="review-row">
+        <span class="dim">To</span>
+        <div class="review-party">
+          <div id="p3-av" class="av"></div>
+          <span id="p3-name" style="font-weight:600"></span>
+        </div>
+      </div>
+      <div class="review-row">
+        <span class="dim">Amount</span>
+        <span id="review-amount" style="font-weight:700"></span>
+      </div>
+      <div class="review-row">
+        <span class="dim">Network</span>
+        <span id="review-network" class="badge testnet-badge" style="font-size:11px">Local test chain</span>
+      </div>
+    </div>
+    <label for="pay-password">Confirm with your password</label>
+    <input id="pay-password" type="password" autocomplete="current-password" placeholder="Enter password">
+    <button id="pay-submit" class="btn pri full" type="button" style="margin-top:16px">Confirm and send</button>
+  </div>
+</section>
+
+<section id="screen-receive" hidden>
+  <div class="card stat" style="padding:28px 18px">
+    <div id="recv-av" class="av lg" style="margin:0 auto 12px;width:72px;height:72px;font-size:28px"></div>
+    <h2 id="recv-name" style="font-size:24px;margin-bottom:8px"></h2>
+    <div class="badge ml-dsa-badge" style="display:inline-block;margin-bottom:16px">HYQUB Username</div>
+    <p class="dim" style="max-width:320px;margin:0 auto 20px;font-size:14px;line-height:1.5">
+      Share your username. Anyone in HYQUB can search it and send you test ETH. Your wallet address stays private.
+    </p>
+    <button id="btn-copy-username" class="btn pri full" type="button">Copy username</button>
+  </div>
+</section>
+
+<section id="screen-status" hidden>
+  <div class="card stat">
+    <div id="status-ring" class="ring spin"></div>
+    <h2 id="status-title"></h2>
+    <p id="status-sub" class="dim"></p>
+    <div id="status-timeline" class="timeline" hidden></div>
+    <div id="status-receipt" class="receipt-card" hidden>
+      <div class="row"><span class="dim">To</span><span id="rec-to" style="font-weight:600"></span></div>
+      <div class="row" style="margin-top:8px"><span class="dim">Amount</span><span id="rec-amt" style="font-weight:600"></span></div>
+      <div class="row" style="margin-top:8px;flex-direction:column;align-items:flex-start;gap:6px">
+        <span class="dim">Transaction hash</span>
+        <div style="display:flex;width:100%;gap:8px;align-items:center">
+          <div id="rec-tx" class="sheet-hash" style="flex:1"></div>
+          <button id="btn-copy-rec-tx" class="btn" type="button" style="padding:6px 12px;font-size:12px">Copy</button>
+        </div>
+      </div>
+    </div>
+    <div class="row" style="margin-top:16px;justify-content:center;gap:10px;flex-wrap:wrap">
+      <button id="status-copy" class="btn" hidden type="button">Copy receipt</button>
+      <button id="status-send-another" class="btn" hidden type="button">Send another</button>
+      <button id="status-done" class="btn pri" hidden type="button">Done</button>
+      <button id="status-retry" class="btn pri" hidden type="button">Try again</button>
+    </div>
+  </div>
+</section>
+
+<div id="sheet-backdrop" class="sheet-backdrop" hidden></div>
+<div id="tx-sheet" class="bottom-sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+  <div class="sheet-handle"></div>
+  <h3 id="sheet-title" style="margin:0 0 14px;font-size:20px;font-weight:700"></h3>
+  <div class="sheet-detail-row">
+    <span class="dim">Status</span>
+    <span id="sheet-status"></span>
+  </div>
+  <div class="sheet-detail-row">
+    <span id="sheet-party-label" class="dim">Counterparty</span>
+    <span id="sheet-party" style="font-weight:600"></span>
+  </div>
+  <div class="sheet-detail-row">
+    <span class="dim">Time</span>
+    <span id="sheet-time"></span>
+  </div>
+  <div class="sheet-detail-row" style="flex-direction:column;align-items:flex-start;gap:4px">
+    <span class="dim">Transaction hash</span>
+    <div id="sheet-hash" class="sheet-hash"></div>
+  </div>
+  <div class="sheet-verify-section" style="margin-top:14px;text-align:left">
+    <div class="dim" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">How this payment was verified</div>
+    <div id="sheet-verify-list" class="sheet-verify-list"></div>
+  </div>
+  <div style="display:flex;gap:10px;margin-top:18px">
+    <button id="btn-copy-tx" class="btn pri full" type="button">Copy transaction hash</button>
+    <button id="btn-close-sheet" class="btn" type="button" style="width:80px">Close</button>
+  </div>
+</div>
+
+
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script src="js/price-chart.js"></script>
 <script type="module" src="js/app.js"></script>
 </body>
 </html>

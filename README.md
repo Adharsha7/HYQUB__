@@ -175,7 +175,35 @@ pytest -q
 ```
 
 See `backend/tests/` for the full test suite.  
-See `backend/scripts/` for manual diagnostic scripts.
+---
+
+## Run the demo
+
+Local development only. You need three terminals.
+
+1. **Anvil** (keeps its saved state): `./start_anvil.sh`
+2. **Backend:**
+```bash
+cd backend
+source venv313/bin/activate
+uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+3. **Frontend:**
+```bash
+cd frontend
+python -m http.server 3000
+```
+
+Open **http://localhost:3000**. Do not use `127.0.0.1:3000`, because the backend CORS only allows `localhost:3000`.
+
+Demo users are created through the normal signup flow. With the backend running, set a password in your shell (never commit it) and run:
+
+```powershell
+$env:HYQUB_DEMO_PASSWORD = "<choose a password, 8+ characters>"
+python scripts\seed_demo_users.py
+```
+
+Create `backend/.env` from `backend/.env.example` and `frontend/js/config.local.js` from `config.example.js`. Both are git-ignored.
 
 ---
 
@@ -195,12 +223,40 @@ See `blockchain/README.md` for contract architecture details.
 
 ---
 
-## Security notes
+## Security model and limitations
 
-- `HYQUB_ENVIRONMENT` defaults to `production`. Dev routes (`/dev/sign`,
-  `/dev/generate-keypair`) require **both** `HYQUB_ENABLE_DEV_TOOLS=true`
-  **and** `chain_id == 31337`. The application refuses to start if dev
-  tools are enabled on a non-local chain.
-- Never commit `.env`. It is excluded by `.gitignore`.
-- The two in-process verifiers share the same Python process. Independent
-  trust boundaries require splitting them into separate services (Phase 2+).
+HYQUB is a working prototype on a local Anvil chain. It is **not audited and not for real funds**.
+
+**How a payment is approved**
+1. The user logs in and confirms a payment with their password.
+2. The backend decrypts the user's ML-DSA-65 secret key (scrypt + AES-GCM) and signs the transaction intent.
+3. Two verifiers check the ML-DSA signature and a quorum approves it.
+4. The backend signs a classical ECDSA approval token. `HYQUBWallet.validateUserOp()` checks that token on-chain.
+
+**Known limitations**
+- **Verifier independence:** verifier A and B run in one Python process, so the 2-of-2 quorum does not give real independence yet.
+- **Single approval signer:** on-chain trust rests on one classical ECDSA key. If it leaks, the off-chain ML-DSA checks can be bypassed.
+- **Custodial signing:** the user's password reaches the server and decrypts the ML-DSA secret key in memory for each payment. The key is never stored in plaintext, but the server can see it while signing. Private keys do not stay in the browser.
+- **Owner bypass:** `HYQUBWallet.execute()` can still be called directly by the wallet owner (Anvil account 0) without any ML-DSA signature or approval token.
+- **On-chain step is classical:** ML-DSA is verified off-chain only. The on-chain check uses ECDSA, so this project does not claim post-quantum security for the on-chain step.
+- **Dev endpoints:** /dev/sign and /dev/generate-keypair only start when HYQUB_ENABLE_DEV_TOOLS=true and the chain id is 31337. The app refuses to start with dev tools on any other chain. Turn them off for demos. Never commit .env.
+- **Single password:** login password is also the payment password.
+
+**Controls in place**
+- Sender comes from the session, never from the request body. Recipients are chosen by name and wallet addresses are not returned to clients.
+- Sessions last 30 minutes and are stored as SHA-256 hashes in SQLite. 5 wrong logins lock a user for 60 seconds. Both survive a backend restart.
+- Limits: 0.5 ETH per payment, 1 ETH per 24 hours, 5 payments per minute per user.
+- `POST /pay` accepts an `Idempotency-Key` header, so a double submit sends one transaction.
+- `/register`, `/rotate` and `/wallet/{address}/state` are not exposed.
+
+---
+
+## Roadmap
+
+- Client-side WASM ML-DSA signing, so the private key never leaves the browser
+- Independent verifier services
+- Multi-signer or KMS-held approval key
+- WalletFactory (CREATE2) and a fix for the owner bypass
+- Persisted payment statuses (pending, confirmed) and a receipt watcher
+- Sepolia deployment with a real bundler and paymaster
+

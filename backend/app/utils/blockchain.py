@@ -99,6 +99,14 @@ def get_web3() -> Web3:
     return web3
 
 
+def get_wallet_balance(wallet_address: str) -> int:
+    """
+    Return the ETH balance (in wei) of a wallet address.
+    """
+    web3 = get_web3()
+    return web3.eth.get_balance(Web3.to_checksum_address(wallet_address))
+
+
 # ---------------------------------------------------------------------------
 # Contract helpers
 # ---------------------------------------------------------------------------
